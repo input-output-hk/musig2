@@ -64,14 +64,14 @@ int main(int argc, char **argv) {
     STATE = 1;
 
     // And finally, the different parties (or the aggregator) aggregate the different signatures
-    unsigned char aggr_sig[crypto_core_ristretto255_SCALARBYTES] = {0};
+    unsigned char aggr_sig[crypto_core_ristretto255_SCALARBYTES];
     aggr_partial_sigs(aggr_sig, part_sigs, NR_SIGNERS);
 
     // VERIFICATION //
 
     // First, we need to compute the aggregate public key. This can be performed by the
     // verifier, or directly by the signature aggregator.
-    unsigned char aggr_pks[crypto_core_ristretto255_BYTES] = {0};
+    unsigned char aggr_pks[crypto_core_ristretto255_BYTES];
     aggregate_pks(aggr_pks, pks, NR_SIGNERS);
 
     printf("First verification: ");
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
     }
 
     // And finally, we aggregate the different signatures
-    unsigned char aggr_sig_2[crypto_core_ristretto255_SCALARBYTES] = {0};
+    unsigned char aggr_sig_2[crypto_core_ristretto255_SCALARBYTES];
     aggr_partial_sigs(aggr_sig_2, part_sigs_2, NR_SIGNERS);
 
     // VERIFICATION //

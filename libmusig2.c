@@ -40,6 +40,7 @@ int aggregate_pks_with_exp(unsigned char *aggr_pk,
                            const int owns_position,
                            int number_signers)
 {
+    memset(aggr_pk, 0, crypto_core_ristretto255_BYTES);
     for (int j = 0; j < number_signers; j++) {
         // we use MAX (64) instead of normal (32) to get almost uniformity.
         unsigned char hash[crypto_generichash_BYTES_MAX];
@@ -165,13 +166,13 @@ int verify_signature(
 }
 
 int aggr_partial_sigs(
-        unsigned char *response,
+        unsigned char *aggr_sig,
         unsigned char *partial_sigs,
         unsigned long long nr_signers
         ) {
-    response[0] = 0;
+    memset(aggr_sig, 0, crypto_core_ristretto255_SCALARBYTES);
     for (int i = 0; i < nr_signers; i++) {
-        crypto_core_ristretto255_scalar_add(response, response, partial_sigs + i * crypto_core_ristretto255_SCALARBYTES);
+        crypto_core_ristretto255_scalar_add(aggr_sig, aggr_sig, partial_sigs + i * crypto_core_ristretto255_SCALARBYTES);
     }
 
     return 0;
