@@ -7,85 +7,109 @@
 
 int main(int argc, char **argv) {
     // Number of signers
-    const int NR_SIGNERS = 2;
-    // Message
+    const int NR_SIGNERS = 4;
+
+    // We provide an example with two messages, where parties precompute the nonces.
+    // In the precomputation scenario, it is very important
+    // that they keep state of what are the rand_nonces that they have used, otherwise
+    // their keys will be vulnerable.
+    const int NR_MESSAGES = 2;
+    int STATE = 0;
     #define MESSAGE (const unsigned char *) "test"
     #define MESSAGE_LEN 4
 
-    // We first generate the key pair of the participants
-    unsigned char sk_1[crypto_core_ristretto255_SCALARBYTES];
-    unsigned char pk_1[crypto_core_ristretto255_BYTES];
+    #define MESSAGE_2 (const unsigned char *) "testcallrustsign"
+    #define MESSAGE_2_LEN 16
 
-    keypair_gen(sk_1, pk_1);
+    // Parties generate their key-pairs
+    unsigned char pks[NR_SIGNERS * crypto_core_ristretto255_BYTES];
+    unsigned char sks[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
 
-    unsigned char sk_2[crypto_core_ristretto255_SCALARBYTES];
-    unsigned char pk_2[crypto_core_ristretto255_BYTES];
-
-    keypair_gen(sk_2, pk_2);
-
-    unsigned char *pks_list[NR_SIGNERS * crypto_core_ristretto255_BYTES] = {pk_1, pk_2};
-
-    // Now each party generates their randomness---note that here signers do not
-    // need to know the pks of other participants nor the message.
-    unsigned char rand_comm_1[NR_V * crypto_core_ristretto255_BYTES];
-    unsigned char rand_nonc_1[NR_V * crypto_core_ristretto255_SCALARBYTES];
-    commit(rand_comm_1, rand_nonc_1);
-
-    unsigned char rand_comm_2[NR_V * crypto_core_ristretto255_BYTES];
-    unsigned char rand_nonc_2[NR_V * crypto_core_ristretto255_SCALARBYTES];
-    commit(rand_comm_2, rand_nonc_2);
-
-    unsigned char *comm_list[NR_V * crypto_core_ristretto255_BYTES] = {rand_comm_1, rand_comm_2};
-
-    // Now party one generates its partial signature
-    unsigned char part_sig_1[crypto_core_ristretto255_SCALARBYTES];
-    unsigned char aggr_announcement_1[crypto_core_ristretto255_BYTES];
-    partial_signature(part_sig_1,
-                      aggr_announcement_1,
-                      pks_list,
-                      comm_list,
-                      MESSAGE,
-                      MESSAGE_LEN,
-                      NR_SIGNERS,
-                      0,
-                      rand_nonc_1,
-                      sk_1);
-
-    // Now party two generates its partial signature
-    unsigned char part_sig_2[crypto_core_ristretto255_SCALARBYTES];
-    unsigned char aggr_announcement_2[crypto_core_ristretto255_BYTES];
-    partial_signature(part_sig_2,
-                      aggr_announcement_2,
-                      pks_list,
-                      comm_list,
-                      MESSAGE,
-                      MESSAGE_LEN,
-                      NR_SIGNERS,
-                      1,
-                      rand_nonc_2,
-                      sk_2);
-
-    // The two aggr_announcement should be the same for both signers
-    for (int i = 0; i < crypto_core_ristretto255_BYTES; i++) {
-        assert(aggr_announcement_1[i] == aggr_announcement_2[i]);
+    for (int i = 0; i < NR_SIGNERS; i++) {
+        keypair_gen(sks + i * crypto_core_ristretto255_SCALARBYTES, pks + i * crypto_core_ristretto255_BYTES);
     }
 
-    unsigned char *part_sigs[] = {part_sig_1, part_sig_2};
+    // Now each party generates their batched randomness---note that here signers do not
+    // need to know the pks of other participants nor the message. Once they precompute all
+    // randomness, they send it over the broadcast channel.
+    unsigned char rand_comm[NR_MESSAGES * NR_SIGNERS * NR_V * crypto_core_ristretto255_BYTES];
+    unsigned char rand_nonc[NR_MESSAGES * NR_SIGNERS * NR_V * crypto_core_ristretto255_SCALARBYTES];
 
-    // now we aggregate the different signatures
-    unsigned char aggr_response[crypto_core_ristretto255_SCALARBYTES];
-    aggr_partial_sigs(aggr_response, part_sigs, NR_SIGNERS);
+    for (int i = 0; i < NR_SIGNERS; i++) {
+        batch_commit(rand_comm + i * NR_MESSAGES * NR_V * crypto_core_ristretto255_BYTES,
+               rand_nonc + i * NR_MESSAGES * NR_V * crypto_core_ristretto255_SCALARBYTES,
+               NR_MESSAGES);
+    }
+
+    // Now parties generate their partial signature for message 1. They broadcast their
+    // partial signature to the other participants. Alternatively, this can be sent
+    // to a single aggregator, or to the verifier.
+    unsigned char part_sigs[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
+    unsigned char aggr_announcement[crypto_core_ristretto255_BYTES];
+
+    for (int i = 0; i < NR_SIGNERS; i++) {
+        partial_signature(part_sigs + i * crypto_core_ristretto255_SCALARBYTES,
+                          aggr_announcement,
+                          pks,
+                          rand_comm + STATE * NR_SIGNERS * NR_V * crypto_core_ristretto255_BYTES,
+                          MESSAGE,
+                          MESSAGE_LEN,
+                          NR_SIGNERS,
+                          i,
+                          rand_nonc + STATE * NR_SIGNERS * NR_V * crypto_core_ristretto255_SCALARBYTES + i * NR_V * crypto_core_ristretto255_SCALARBYTES,
+                          sks + i * crypto_core_ristretto255_SCALARBYTES);
+    }
+
+    // At each signature, the state needs to be updated
+    STATE = 1;
+
+    // And finally, the different parties (or the aggregator) aggregate the different signatures
+    unsigned char aggr_sig[crypto_core_ristretto255_SCALARBYTES] = {0};
+    aggr_partial_sigs(aggr_sig, part_sigs, NR_SIGNERS);
 
     // VERIFICATION //
 
     // First, we need to compute the aggregate public key. This can be performed by the
     // verifier, or directly by the signature aggregator.
-    unsigned char aggr_pks[crypto_core_ristretto255_BYTES];
-    aggregate_pks(aggr_pks, pks_list, NR_SIGNERS);
+    unsigned char aggr_pks[crypto_core_ristretto255_BYTES] = {0};
+    aggregate_pks(aggr_pks, pks, NR_SIGNERS);
 
-    printf("Verification: ");
+    printf("First verification: ");
     // now we check the signature!
-    if (verify_signature(aggr_announcement_2, aggr_pks, aggr_response, MESSAGE, MESSAGE_LEN) == 0) {
+    if (verify_signature(aggr_announcement, aggr_pks, aggr_sig, MESSAGE, MESSAGE_LEN) == 0) {
+        printf("Success!\n");
+    } else {
+        printf("Failure!\n");
+    }
+
+    // Second message //
+    // Now that we have precomputed the nonces, we can directly compute the signature
+    unsigned char part_sigs_2[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
+    unsigned char aggr_announcement_2[crypto_core_ristretto255_BYTES];
+
+    for (int i = 0; i < NR_SIGNERS; i++) {
+        partial_signature(part_sigs_2 + i * crypto_core_ristretto255_SCALARBYTES,
+                          aggr_announcement_2,
+                          pks,
+                          rand_comm + STATE * NR_V * crypto_core_ristretto255_BYTES,
+                          MESSAGE_2,
+                          MESSAGE_2_LEN,
+                          NR_SIGNERS,
+                          i,
+                          rand_nonc + STATE * NR_V * crypto_core_ristretto255_SCALARBYTES + i * NR_V * crypto_core_ristretto255_SCALARBYTES,
+                          sks + i * crypto_core_ristretto255_SCALARBYTES);
+    }
+
+    // And finally, we aggregate the different signatures
+    unsigned char aggr_sig_2[crypto_core_ristretto255_SCALARBYTES] = {0};
+    aggr_partial_sigs(aggr_sig_2, part_sigs_2, NR_SIGNERS);
+
+    // VERIFICATION //
+
+
+    printf("Second verification: ");
+    // now we check the signature! We use the same aggregate public key as before.
+    if (verify_signature(aggr_announcement_2, aggr_pks, aggr_sig_2, MESSAGE_2, MESSAGE_2_LEN) == 0) {
         printf("Success!\n");
     } else {
         printf("Failure!\n");

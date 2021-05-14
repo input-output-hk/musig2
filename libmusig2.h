@@ -6,12 +6,14 @@
 #define NR_V (const int) 2
 
 int keypair_gen(unsigned char *sk, unsigned char *pk);
-int commit(unsigned char commitment[], unsigned char randomness[]);
+
+int commit(unsigned char *commitment, unsigned char *randomness);
+int batch_commit(unsigned char *commitment, unsigned char *randomness, unsigned long long batch_size);
 
 int partial_signature(unsigned char *sig,
                       unsigned char *aggr_announcement,
-                      unsigned char *pks[],
-                      unsigned char *committed_nonces[],
+                      unsigned char *pks,
+                      unsigned char *committed_nonces,
                       const unsigned char *m,
                       unsigned long long mlen,
                       unsigned long long nr_signers,
@@ -29,7 +31,7 @@ int verify_signature(
 
 int aggr_partial_sigs(
         unsigned char *response,
-        unsigned char *partial_sigs[],
+        unsigned char *partial_sigs,
         unsigned long long nr_signers
 );
 
@@ -55,9 +57,9 @@ int compute_challenge(unsigned char *challenge,
                       const unsigned char *m,
                       unsigned long long mlen);
 
-int aggregate_pks(unsigned char *aggr_pk, unsigned char *pks[], int number_signers);
+int aggregate_pks(unsigned char *aggr_pk, unsigned char *pks, int number_signers);
 
-int aggregate_pks_with_exp(unsigned char *aggr_pk, unsigned char *pks[], unsigned char *own_exponent,
+int aggregate_pks_with_exp(unsigned char *aggr_pk, unsigned char *pks, unsigned char *own_exponent,
                   const int owns_position, int number_signers);
 
 

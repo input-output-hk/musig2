@@ -15,35 +15,31 @@ int keypair_gen(unsigned char *sk, unsigned char *pk) {
 // two points, meaning that for now we are working in the AGM.
 // todo: check if the way of handling arrays is best practice.
 int commit(unsigned char *commitment, unsigned char *randomness) {
+    return batch_commit(commitment, randomness, 1);
+}
 
-   // creating two NR_V nonces
-    crypto_core_ristretto255_scalar_random(randomness);
-    crypto_core_ristretto255_scalar_random(randomness + crypto_core_ristretto255_SCALARBYTES);
+int batch_commit(unsigned char *commitment, unsigned char *randomness, unsigned long long batch_size) {
+    for (int j = 0; j < batch_size; j ++){
+        for (int i = 0; i < NR_V; i++) {
+            crypto_core_ristretto255_scalar_random(randomness + j * NR_V * crypto_core_ristretto255_SCALARBYTES + i * crypto_core_ristretto255_SCALARBYTES);
 
-    if (crypto_scalarmult_ristretto255_base(commitment, randomness) != 0) {
-        return crypto_scalarmult_ristretto255_base(commitment, randomness);
+            crypto_scalarmult_ristretto255_base(
+                    commitment + j * NR_V * crypto_core_ristretto255_SCALARBYTES + i * crypto_core_ristretto255_BYTES,
+                    randomness + j * NR_V * crypto_core_ristretto255_SCALARBYTES + i * crypto_core_ristretto255_SCALARBYTES);
+        }
     }
-
-    return crypto_scalarmult_ristretto255_base(
-            commitment + crypto_core_ristretto255_BYTES,
-            randomness + crypto_core_ristretto255_SCALARBYTES);
+    return 0;
 }
 
 // Given a set of public keys, computes the aggr_pk and the exponent corresponding
 // to position `owns_position`.
 // todo: best to specify the size of each input?
 int aggregate_pks_with_exp(unsigned char *aggr_pk,
-                           unsigned char *pks[],
+                           unsigned char *pks,
                            unsigned char *own_exponent,
                            const int owns_position,
                            int number_signers)
 {
-    // We create the multiset of keys to include it in the hash
-    unsigned char pk_multiset[number_signers * crypto_core_ristretto255_BYTES];
-    for (int i = 0; i < number_signers; i++) {
-        memmove(pk_multiset + (i * crypto_core_ristretto255_BYTES), pks[i], crypto_core_ristretto255_BYTES);
-    }
-
     for (int j = 0; j < number_signers; j++) {
         // we use MAX (64) instead of normal (32) to get almost uniformity.
         unsigned char hash[crypto_generichash_BYTES_MAX];
@@ -52,13 +48,13 @@ int aggregate_pks_with_exp(unsigned char *aggr_pk,
 
         crypto_generichash_state state;
         crypto_generichash_init(&state, NULL, 0, sizeof hash);
-        crypto_generichash_update(&state, pk_multiset, number_signers * crypto_core_ristretto255_BYTES);
-        crypto_generichash_update(&state, pks[j], crypto_core_ristretto255_BYTES);
+        crypto_generichash_update(&state, pks, number_signers * crypto_core_ristretto255_BYTES);
+        crypto_generichash_update(&state, pks + j * crypto_core_ristretto255_BYTES, crypto_core_ristretto255_BYTES);
 
         crypto_generichash_final(&state, hash, sizeof hash);
 
         crypto_core_ristretto255_scalar_reduce(jth_exp, hash);
-        if (crypto_scalarmult_ristretto255(temp_point, jth_exp, pks[j]) != 0){
+        if (crypto_scalarmult_ristretto255(temp_point, jth_exp, pks + j * crypto_core_ristretto255_BYTES) != 0){
             printf("pk at position %d is the identity point", j);
         }
 
@@ -74,7 +70,7 @@ int aggregate_pks_with_exp(unsigned char *aggr_pk,
 }
 
 // Given a set of public keys, return the corresponding aggregate.
-int aggregate_pks(unsigned char *aggr_pk, unsigned char *pks[], int number_signers) {
+int aggregate_pks(unsigned char *aggr_pk, unsigned char *pks, int number_signers) {
     return aggregate_pks_with_exp(aggr_pk, pks, NULL, -1, number_signers);
 }
 
@@ -82,8 +78,8 @@ int aggregate_pks(unsigned char *aggr_pk, unsigned char *pks[], int number_signe
 // signature corresponding to the given message.
 int partial_signature(unsigned char *sig,
                       unsigned char *aggr_announcement,
-                      unsigned char *pks[],
-                      unsigned char *committed_nonces[],
+                      unsigned char *pks,
+                      unsigned char *committed_nonces,
                       const unsigned char *m,
                       unsigned long long mlen,
                       unsigned long long nr_signers,
@@ -96,16 +92,13 @@ int partial_signature(unsigned char *sig,
     aggregate_pks_with_exp(aggr_pks, pks, own_exponent, owns_position, nr_signers);
 
     // Now we combine the committed_nonces from all participants, by adding all of them.
-    unsigned char aggr_comms[NR_V * crypto_core_ristretto255_BYTES];
+    unsigned char aggr_comms[NR_V * crypto_core_ristretto255_BYTES] = {0};
     for (int j = 0; j < NR_V; j++) {
-        unsigned char zero[crypto_core_ristretto255_BYTES] = {0};
-        memmove(aggr_comms + (j * crypto_core_ristretto255_BYTES), zero, crypto_core_ristretto255_BYTES);
-
-        for (int i = 0; i < nr_signers; i++){
+        for (int i = 0; i < nr_signers; i++) {
             crypto_core_ristretto255_add(
                     aggr_comms + (j * crypto_core_ristretto255_BYTES),
                     aggr_comms + (j * crypto_core_ristretto255_BYTES),
-                    committed_nonces[i] + j * crypto_core_ristretto255_BYTES
+                    committed_nonces + i * NR_V * crypto_core_ristretto255_BYTES + j * crypto_core_ristretto255_BYTES
             );
         }
     }
@@ -165,7 +158,7 @@ int verify_signature(
 
     for (int i = 1; i < crypto_core_ristretto255_BYTES; i++) {
         if (rhs[i] != lhs[i]) {
-            return 0;
+            return -1;
         }
     }
     return 0;
@@ -173,12 +166,12 @@ int verify_signature(
 
 int aggr_partial_sigs(
         unsigned char *response,
-        unsigned char *partial_sigs[],
+        unsigned char *partial_sigs,
         unsigned long long nr_signers
         ) {
     response[0] = 0;
     for (int i = 0; i < nr_signers; i++) {
-        crypto_core_ristretto255_scalar_add(response, response, partial_sigs[i]);
+        crypto_core_ristretto255_scalar_add(response, response, partial_sigs + i * crypto_core_ristretto255_SCALARBYTES);
     }
 
     return 0;

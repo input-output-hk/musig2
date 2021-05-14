@@ -10,4 +10,4 @@ musig2test: musig2test.c libmusig2.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
-	rm *.o musig2test
+	rm -rf *.o musig2test batchtest musig2test.dSYM batchtest.dSYM
