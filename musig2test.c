@@ -7,7 +7,7 @@
 
 int main(int argc, char **argv) {
     // Number of signers
-    const int NR_SIGNERS = 4;
+    const int NR_SIGNERS = 1;
 
     // We provide an example with two messages, where parties precompute the nonces.
     // In the precomputation scenario, it is very important
@@ -80,6 +80,43 @@ int main(int argc, char **argv) {
         printf("Success!\n");
     } else {
         printf("Failure!\n");
+    }
+
+    // What would be ideal here is that standard verification works out as well. For that
+    // we need to prepare the points beforehand, to handle the particular encoding of
+    // Ristretto points and clamping the scalar
+    unsigned char pk_ed25519[crypto_core_ed25519_BYTES];
+    unsigned char announcement_ed25519[crypto_core_ed25519_BYTES];
+
+    if (prepare_sig_and_pk(pk_ed25519, announcement_ed25519, aggr_pks, aggr_announcement) == -1) {
+        printf("conversion went wrong");
+    }
+
+    // Now we need to get the torsion-free representative of the ristretto points in edwards form, to ensure
+    // that the verification equation will validate.
+    mul_torsion_safe_scalar(pk_ed25519, pk_ed25519);
+    mul_torsion_safe_scalar(announcement_ed25519, announcement_ed25519);
+
+    // We pad the announcement, response, and message in one value
+    unsigned char sm[64 + MESSAGE_LEN];
+    memmove(sm, announcement_ed25519, 32);
+    memmove(sm + 32, aggr_sig, 32);
+    memmove(sm + 64, MESSAGE, MESSAGE_LEN);
+
+    unsigned char unsigned_message[MESSAGE_LEN];
+    unsigned long long unsigned_message_len;
+
+    if (crypto_sign_open(unsigned_message, &unsigned_message_len, sm, 64 + MESSAGE_LEN, pk_ed25519) != 0) {
+        printf("Translated signature failed\n");
+        if (crypto_core_ed25519_is_valid_point(pk_ed25519) == 0) {
+            printf("pk invalid\n");
+        } else if (crypto_core_ed25519_is_valid_point(announcement_ed25519) == 0) {
+            printf("announcement invalid\n");
+        }
+        return -1;
+    }
+    else {
+        printf("Translated signature worked!\n");
     }
 
     // Second message //

@@ -210,15 +210,28 @@ int compute_challenge(unsigned char *challenge,
                       unsigned long long mlen
         ) {
     // we use MAX (64) instead of normal (32) to get almost uniformity.
-    unsigned char hash[crypto_generichash_BYTES_MAX];
+    unsigned char hash[64];
+    // before hashing we need to change the encoding of the points, to make
+    // sure that the verifier gets the same challenge
+    unsigned char pk_ed25519[crypto_core_ed25519_BYTES];
+    unsigned char announcement_ed25519[crypto_core_ed25519_BYTES];
 
-    crypto_generichash_state state;
-    crypto_generichash_init(&state, NULL, 0, sizeof hash);
-    crypto_generichash_update(&state, aggr_pks, crypto_core_ristretto255_BYTES);
-    crypto_generichash_update(&state, announcement, crypto_core_ristretto255_BYTES);
-    crypto_generichash_update(&state, m, mlen);
+    if (prepare_sig_and_pk(pk_ed25519, announcement_ed25519, aggr_pks, announcement) == -1) {
+        printf("conversion went wrong");
+    }
 
-    crypto_generichash_final(&state, hash, sizeof hash);
+    // Now we need to get the torsion-free representative of the ristretto points in edwards form, to ensure
+    // that the verification equation will validate.
+    mul_torsion_safe_scalar(pk_ed25519, pk_ed25519);
+    mul_torsion_safe_scalar(announcement_ed25519, announcement_ed25519);
+
+    crypto_hash_sha512_state state;
+    crypto_hash_sha512_init(&state);
+    crypto_hash_sha512_update(&state, announcement_ed25519, 32);
+    crypto_hash_sha512_update(&state, pk_ed25519, 32);
+    crypto_hash_sha512_update(&state, m, mlen);
+
+    crypto_hash_sha512_final(&state, hash);
 
     crypto_core_ristretto255_scalar_reduce(challenge, hash);
     return 0;
