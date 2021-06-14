@@ -216,14 +216,11 @@ int compute_challenge(unsigned char *challenge,
     unsigned char pk_ed25519[crypto_core_ed25519_BYTES];
     unsigned char announcement_ed25519[crypto_core_ed25519_BYTES];
 
+    // Now we need to get the torsion-free representative of the ristretto points in edwards form, to ensure
+    // that the verification equation will validate (the verifier will handle torsion-free elements).
     if (prepare_sig_and_pk(pk_ed25519, announcement_ed25519, aggr_pks, announcement) == -1) {
         printf("conversion went wrong");
     }
-
-    // Now we need to get the torsion-free representative of the ristretto points in edwards form, to ensure
-    // that the verification equation will validate.
-    mul_torsion_safe_scalar(pk_ed25519, pk_ed25519);
-    mul_torsion_safe_scalar(announcement_ed25519, announcement_ed25519);
 
     crypto_hash_sha512_state state;
     crypto_hash_sha512_init(&state);
