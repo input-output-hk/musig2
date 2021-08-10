@@ -13,3 +13,8 @@ make
 
 # Disclaimer
 This code is work in progress, and has not been audited. Do not use in production. 
+
+# Batch verification equation
+Using batch verification equation avoids the need of multiplying by the torsion-safe component. Similarly, it would 
+ensure that, even if a party uses a pk with a torsion component (or sends an announcement), the equation will still 
+validate. Study needed, to see whether this affects the protocol.
