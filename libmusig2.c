@@ -12,8 +12,7 @@ int keypair_gen(unsigned char *sk, unsigned char *pk) {
 }
 
 // Function that generates randomness for a single message. Note that we are generating
-// two points, meaning that for now we are working in the AGM.
-// todo: check if the way of handling arrays is best practice.
+// two points, meaning that for now we are working in the Algebraic Group Model (AGM).
 int commit(unsigned char *commitment, unsigned char *randomness) {
     return batch_commit(commitment, randomness, 1);
 }
@@ -63,7 +62,6 @@ int aggregate_pks_with_exp(unsigned char *aggr_pk,
             memmove(own_exponent, jth_exp, crypto_core_ristretto255_SCALARBYTES);
         }
 
-        // todo: ensure this "add-assign" works properly.
         crypto_core_ristretto255_add(aggr_pk, aggr_pk, temp_point);
     }
 
@@ -218,7 +216,11 @@ int compute_challenge(unsigned char *challenge,
 
     // Now we need to get the torsion-free representative of the ristretto points in edwards form, to ensure
     // that the verification equation will validate (the verifier will handle torsion-free elements).
-    if (prepare_sig_and_pk(pk_ed25519, announcement_ed25519, aggr_pks, announcement) == -1) {
+
+    // Now we need to get the torsion-free representative of the ristretto points in edwards form, to ensure
+    // that the verification equation will validate.
+    if (map_ristretto_prime_subgroup(pk_ed25519, aggr_pks) == -1 ||
+            map_ristretto_prime_subgroup(announcement_ed25519, announcement) == -1) {
         printf("conversion went wrong");
     }
 
@@ -267,7 +269,6 @@ int compute_announcement(unsigned char *announcement,
             printf("Commitment at position %d is the identity point", i);
         }
 
-        // todo: ensure this "add-assign" works properly.
         crypto_core_ristretto255_add(announcement, announcement, temp_point);
     }
     return 0;

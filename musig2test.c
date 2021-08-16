@@ -84,13 +84,14 @@ int main(int argc, char **argv) {
 
     // What would be ideal here is that standard verification works out as well. For that
     // we need to prepare the points beforehand, to handle the particular encoding of
-    // Ristretto points and clamping the scalar
+    // Ristretto points
     unsigned char pk_ed25519[crypto_core_ed25519_BYTES];
     unsigned char announcement_ed25519[crypto_core_ed25519_BYTES];
 
     // Now we need to get the torsion-free representative of the ristretto points in edwards form, to ensure
     // that the verification equation will validate.
-    if (prepare_sig_and_pk(pk_ed25519, announcement_ed25519, aggr_pks, aggr_announcement) == -1) {
+    if (map_ristretto_prime_subgroup(pk_ed25519, aggr_pks) == -1 ||
+            map_ristretto_prime_subgroup(announcement_ed25519, aggr_announcement) == -1) {
         printf("conversion went wrong");
     }
 
@@ -105,11 +106,6 @@ int main(int argc, char **argv) {
 
     if (crypto_sign_open(unsigned_message, &unsigned_message_len, sm, 64 + MESSAGE_LEN, pk_ed25519) != 0) {
         printf("Translated signature failed\n");
-        if (crypto_core_ed25519_is_valid_point(pk_ed25519) == 0) {
-            printf("pk invalid\n");
-        } else if (crypto_core_ed25519_is_valid_point(announcement_ed25519) == 0) {
-            printf("announcement invalid\n");
-        }
         return -1;
     }
     else {
@@ -139,13 +135,30 @@ int main(int argc, char **argv) {
     aggr_partial_sigs(aggr_sig_2, part_sigs_2, NR_SIGNERS);
 
     // VERIFICATION //
+    // The public key was already mapped previously to the prime order subgroup, hence we only need to map
+    // the new announcement.
+    unsigned char announcement_ed25519_2[crypto_core_ed25519_BYTES];
 
+    if (map_ristretto_prime_subgroup(announcement_ed25519_2, aggr_announcement_2) == -1) {
+        printf("conversion went wrong");
+    }
+
+    // We pad the announcement, response, and message in one value
+    unsigned char sm_2[64 + MESSAGE_2_LEN];
+    memmove(sm_2, announcement_ed25519_2, 32);
+    memmove(sm_2 + 32, aggr_sig_2, 32);
+    memmove(sm_2 + 64, MESSAGE_2, MESSAGE_2_LEN);
+
+    unsigned char unsigned_message_2[MESSAGE_2_LEN];
+    unsigned long long unsigned_message_len_2;
 
     printf("Second verification: ");
     // now we check the signature! We use the same aggregate public key as before.
-    if (verify_signature(aggr_announcement_2, aggr_pks, aggr_sig_2, MESSAGE_2, MESSAGE_2_LEN) == 0) {
-        printf("Success!\n");
-    } else {
-        printf("Failure!\n");
+    if (crypto_sign_open(unsigned_message_2, &unsigned_message_len_2, sm_2, 64 + MESSAGE_2_LEN, pk_ed25519) != 0) {
+        printf("Translated signature failed\n");
+        return -1;
+    }
+    else {
+        printf("Translated signature worked!\n");
     }
 }
