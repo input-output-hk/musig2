@@ -29,9 +29,20 @@ int main(int argc, char **argv) {
         keypair_gen(sks + i * crypto_core_ristretto255_SCALARBYTES, pks + i * crypto_core_ristretto255_BYTES);
     }
 
+    // Now that we know all the parties public keys, we can compute the (public) exponent
+    // of each party, and the aggregated public key.
+    unsigned char aggr_pk[crypto_core_ristretto255_BYTES];
+    aggregate_pks(aggr_pk, pks, NR_SIGNERS);
+
+    unsigned char public_exponents[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
+    for (int i = 0; i < NR_SIGNERS; i++) {
+        compute_exponent(public_exponents + i * crypto_core_ristretto255_SCALARBYTES, pks, i, NR_SIGNERS);
+    }
+
     // Now each party generates their batched randomness---note that here signers do not
     // need to know the pks of other participants nor the message. Once they precompute all
-    // randomness, they send it over the broadcast channel.
+    // randomness, they send the commitment over the broadcast channel. The nonces themselves
+    // MUST NOT be sent to other parties.
     unsigned char rand_comm[NR_MESSAGES * NR_SIGNERS * NR_V * crypto_core_ristretto255_BYTES];
     unsigned char rand_nonc[NR_MESSAGES * NR_SIGNERS * NR_V * crypto_core_ristretto255_SCALARBYTES];
 
@@ -45,23 +56,28 @@ int main(int argc, char **argv) {
     // partial signature to the other participants. Alternatively, this can be sent
     // to a single aggregator, or to the verifier.
     unsigned char part_sigs[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
+    // The aggr_announcement is the same for all signers, hence we only need one variable.
     unsigned char aggr_announcement[crypto_core_ristretto255_BYTES];
 
     for (int i = 0; i < NR_SIGNERS; i++) {
         partial_signature(part_sigs + i * crypto_core_ristretto255_SCALARBYTES,
                           aggr_announcement,
-                          pks,
+                          aggr_pk,
+                          sks + i * crypto_core_ristretto255_SCALARBYTES,
+                          rand_nonc + STATE * NR_SIGNERS * NR_V * crypto_core_ristretto255_SCALARBYTES + i * NR_V * crypto_core_ristretto255_SCALARBYTES,
                           rand_comm + STATE * NR_SIGNERS * NR_V * crypto_core_ristretto255_BYTES,
+                          public_exponents + i * crypto_core_ristretto255_SCALARBYTES,
                           MESSAGE,
                           MESSAGE_LEN,
-                          NR_SIGNERS,
-                          i,
-                          rand_nonc + STATE * NR_SIGNERS * NR_V * crypto_core_ristretto255_SCALARBYTES + i * NR_V * crypto_core_ristretto255_SCALARBYTES,
-                          sks + i * crypto_core_ristretto255_SCALARBYTES);
+                          NR_SIGNERS);
     }
 
     // At each signature, the state needs to be updated
     STATE = 1;
+
+    // As a safety measure, the nonce used should be safely deleted. This could be done by overwriting random
+    // bytes. Overwriting zeroes should only be done if before signing the nodes check that the nonces are
+    // not zero.
 
     // And finally, the different parties (or the aggregator) aggregate the different signatures
     unsigned char aggr_sig[crypto_core_ristretto255_SCALARBYTES];
@@ -120,14 +136,14 @@ int main(int argc, char **argv) {
     for (int i = 0; i < NR_SIGNERS; i++) {
         partial_signature(part_sigs_2 + i * crypto_core_ristretto255_SCALARBYTES,
                           aggr_announcement_2,
-                          pks,
+                          aggr_pk,
+                          sks + i * crypto_core_ristretto255_SCALARBYTES,
+                          rand_nonc + STATE * NR_V * crypto_core_ristretto255_SCALARBYTES + i * NR_V * crypto_core_ristretto255_SCALARBYTES,
                           rand_comm + STATE * NR_V * crypto_core_ristretto255_BYTES,
+                          public_exponents + i * crypto_core_ristretto255_SCALARBYTES,
                           MESSAGE_2,
                           MESSAGE_2_LEN,
-                          NR_SIGNERS,
-                          i,
-                          rand_nonc + STATE * NR_V * crypto_core_ristretto255_SCALARBYTES + i * NR_V * crypto_core_ristretto255_SCALARBYTES,
-                          sks + i * crypto_core_ristretto255_SCALARBYTES);
+                          NR_SIGNERS);
     }
 
     // And finally, we aggregate the different signatures
@@ -160,5 +176,14 @@ int main(int argc, char **argv) {
     }
     else {
         printf("Translated signature worked!\n");
+    }
+
+    // finally, we simply ensure that the verification function does not always output true
+    unsigned char invalid_sm[64 + MESSAGE_2_LEN];
+    memmove(invalid_sm, announcement_ed25519_2, 32);
+    memmove(invalid_sm + 32, aggr_sig_2, 32);
+    memmove(invalid_sm + 64, MESSAGE, MESSAGE_LEN);
+    if (crypto_sign_open(unsigned_message_2, &unsigned_message_len_2, invalid_sm, 64 + MESSAGE_LEN, pk_ed25519) == 0) {
+        printf("This should not validate\n");
     }
 }
