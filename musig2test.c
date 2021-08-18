@@ -7,7 +7,7 @@
 
 int main(int argc, char **argv) {
     // Number of signers
-    const int NR_SIGNERS = 1;
+    const int NR_SIGNERS = 5;
 
     // We provide an example with two messages, where parties precompute the nonces.
     // In the precomputation scenario, it is very important
