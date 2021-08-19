@@ -5,19 +5,19 @@
 #include <assert.h>
 
 // Generate key-pair.
-int keypair_gen(unsigned char *sk, unsigned char *pk) {
+void keypair_gen(unsigned char *sk, unsigned char *pk) {
 
     crypto_core_ristretto255_scalar_random(sk);
-    return crypto_scalarmult_ristretto255_base(pk, sk);
+    crypto_scalarmult_ristretto255_base(pk, sk);
 }
 
 // Function that generates randomness and its corresponding commitment, for a single signature.
-int commit(unsigned char *commitment, unsigned char *randomness) {
+void commit(unsigned char *commitment, unsigned char *randomness) {
     return batch_commit(commitment, randomness, 1);
 }
 
 // Function that generates randomness and their corresponding commitments, for `batch_size` signatures.
-int batch_commit(unsigned char *commitment, unsigned char *randomness, unsigned long batch_size) {
+void batch_commit(unsigned char *commitment, unsigned char *randomness, unsigned long batch_size) {
     for (int j = 0; j < batch_size; j ++){
         for (int i = 0; i < NR_V; i++) {
             crypto_core_ristretto255_scalar_random(randomness + j * NR_V * crypto_core_ristretto255_SCALARBYTES + i * crypto_core_ristretto255_SCALARBYTES);
@@ -27,7 +27,6 @@ int batch_commit(unsigned char *commitment, unsigned char *randomness, unsigned 
                     randomness + j * NR_V * crypto_core_ristretto255_SCALARBYTES + i * crypto_core_ristretto255_SCALARBYTES);
         }
     }
-    return 0;
 }
 
 // Given a set of public keys, this function computes the exponent corresponding to
@@ -57,9 +56,15 @@ int aggregate_pks(unsigned char *aggr_pk,
         unsigned char temp_point[crypto_core_ristretto255_BYTES];
         unsigned char jth_exp[crypto_core_ristretto255_SCALARBYTES];
 
+        if (crypto_core_ristretto255_is_valid_point(pks + j * crypto_core_ristretto255_BYTES) != 1) {
+            printf("pk at position %d is not a valid ristretto point", j);
+            return -1;
+        }
+
         compute_exponent(jth_exp, pks, j, number_signers);
         if (crypto_scalarmult_ristretto255(temp_point, jth_exp, pks + j * crypto_core_ristretto255_BYTES) != 0){
             printf("pk at position %d is the identity point", j);
+            return -1;
         }
 
         crypto_core_ristretto255_add(aggr_pk, aggr_pk, temp_point);
@@ -71,7 +76,7 @@ int aggregate_pks(unsigned char *aggr_pk,
 // Given as input a MuSig2 aggregated key, a secret key, a (unused) secret nonce, the commitments of other parties
 // secret nonces, the signers public exponent, and a message, return the partial signature corresponding to the given
 // message.
-int partial_signature(unsigned char *sig,
+void partial_signature(unsigned char *sig,
                       unsigned char *aggr_announcement,
                       const unsigned char *aggr_pk,
                       const unsigned char *sk,
@@ -122,8 +127,6 @@ int partial_signature(unsigned char *sig,
             sk,
             exponents,
             secret_nonce);
-
-    return 0;
 }
 
 int verify_signature(
@@ -143,6 +146,7 @@ int verify_signature(
     crypto_scalarmult_ristretto255_base(lhs, aggr_sig);
     if (crypto_scalarmult_ristretto255(rhs, challenge, aggr_pks) != 0) {
         printf("aggr_pk is the identity point. Should not be");
+        return -1;
     }
     crypto_core_ristretto255_add(rhs, rhs, announcement);
 
@@ -154,7 +158,7 @@ int verify_signature(
     return 0;
 }
 
-int aggr_partial_sigs(
+void aggr_partial_sigs(
         unsigned char *aggr_sig,
         const unsigned char *partial_sigs,
         unsigned long nr_signers
@@ -163,11 +167,9 @@ int aggr_partial_sigs(
     for (int i = 0; i < nr_signers; i++) {
         crypto_core_ristretto255_scalar_add(aggr_sig, aggr_sig, partial_sigs + i * crypto_core_ristretto255_SCALARBYTES);
     }
-
-    return 0;
 }
 
-int compute_response(
+void compute_response(
         unsigned char *response,
         const unsigned char *challenge,
         const unsigned char *own_exponent,
@@ -186,13 +188,9 @@ int compute_response(
                 exponents + (i * crypto_core_ristretto255_SCALARBYTES));
         crypto_core_ristretto255_scalar_add(response, response, temp_scalar);
     }
-
-
-
-    return 0;
 }
 
-int compute_challenge(unsigned char *challenge,
+void compute_challenge(unsigned char *challenge,
                       const unsigned char *aggr_pks,
                       const unsigned char *announcement,
                       const unsigned char *m,
@@ -224,10 +222,9 @@ int compute_challenge(unsigned char *challenge,
     crypto_hash_sha512_final(&state, hash);
 
     crypto_core_ristretto255_scalar_reduce(challenge, hash);
-    return 0;
 }
 
-int compute_announcement(unsigned char *announcement,
+void compute_announcement(unsigned char *announcement,
                                  unsigned char *exponents,
                                  const unsigned char *aggr_pk,
                                  const unsigned char *grouped_commitments,
@@ -264,5 +261,22 @@ int compute_announcement(unsigned char *announcement,
 
         crypto_core_ristretto255_add(announcement, announcement, temp_point);
     }
-    return 0;
+}
+
+// This function takes as input the partial signatures, the announcement and the message signed
+// and returns an ed25519 compatible signature.
+void prepare_final_signature(unsigned char *ed25519_compat_sig,
+                            const unsigned char *partial_sigs, const unsigned char *announcement,
+                            const unsigned char *m, unsigned long long mlen, unsigned long nr_signers) {
+    unsigned char aggr_sig[crypto_core_ristretto255_SCALARBYTES], announcement_ed25519[crypto_core_ristretto255_BYTES];
+    aggr_partial_sigs(aggr_sig, partial_sigs, nr_signers);
+
+
+    if (map_ristretto_prime_subgroup(announcement_ed25519, announcement) == -1) {
+        printf("ERROR: announcement is not a valid ristretto point");
+    }
+
+    memmove(ed25519_compat_sig, announcement_ed25519, 32);
+    memmove(ed25519_compat_sig + 32, aggr_sig, 32);
+    memmove(ed25519_compat_sig + 64, m, mlen);
 }

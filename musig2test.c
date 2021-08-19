@@ -32,7 +32,18 @@ int main(int argc, char **argv) {
     // Now that we know all the parties public keys, we can compute the (public) exponent
     // of each party, and the aggregated public key.
     unsigned char aggr_pk[crypto_core_ristretto255_BYTES];
-    aggregate_pks(aggr_pk, pks, NR_SIGNERS);
+    if (aggregate_pks(aggr_pk, pks, NR_SIGNERS) == -1) {
+        printf("some party misbehaved, and incorrectly generated their keys.");
+    }
+
+    // We can also prepare the ed25519 representative of the public key (the one that will be used by
+    // the ed25519 verifier).
+    unsigned char pk_ed25519[crypto_core_ed25519_BYTES];
+    if (map_ristretto_prime_subgroup(pk_ed25519, aggr_pk) == -1) {
+        // we've checked above that all public keys are valid. If that is the case, then this check will
+        // never fail.
+        printf("aggregated pk is not a valid ristretto point");
+    }
 
     unsigned char public_exponents[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
     for (int i = 0; i < NR_SIGNERS; i++) {
@@ -77,49 +88,18 @@ int main(int argc, char **argv) {
 
     // As a safety measure, the nonce used should be safely deleted. This could be done by overwriting random
     // bytes. Overwriting zeroes should only be done if before signing the nodes check that the nonces are
-    // not zero.
+    // not zero. Otherwise, using a nonce full of zeros is a security vulnerability.
 
-    // And finally, the different parties (or the aggregator) aggregate the different signatures
-    unsigned char aggr_sig[crypto_core_ristretto255_SCALARBYTES];
-    aggr_partial_sigs(aggr_sig, part_sigs, NR_SIGNERS);
-
-    // VERIFICATION //
-
-    // First, we need to compute the aggregate public key. This can be performed by the
-    // verifier, or directly by the signature aggregator.
-    unsigned char aggr_pks[crypto_core_ristretto255_BYTES];
-    aggregate_pks(aggr_pks, pks, NR_SIGNERS);
-
-    printf("First verification: ");
-    // now we check the signature!
-    if (verify_signature(aggr_announcement, aggr_pks, aggr_sig, MESSAGE, MESSAGE_LEN) == 0) {
-        printf("Success!\n");
-    } else {
-        printf("Failure!\n");
-    }
-
-    // What would be ideal here is that standard verification works out as well. For that
-    // we need to prepare the points beforehand, to handle the particular encoding of
-    // Ristretto points
-    unsigned char pk_ed25519[crypto_core_ed25519_BYTES];
-    unsigned char announcement_ed25519[crypto_core_ed25519_BYTES];
-
-    // Now we need to get the torsion-free representative of the ristretto points in edwards form, to ensure
-    // that the verification equation will validate.
-    if (map_ristretto_prime_subgroup(pk_ed25519, aggr_pks) == -1 ||
-            map_ristretto_prime_subgroup(announcement_ed25519, aggr_announcement) == -1) {
-        printf("conversion went wrong");
-    }
-
-    // We pad the announcement, response, and message in one value
+    // And finally, the different parties (or the aggregator) aggregate the different signatures, and prepare
+    // them to be ed25519 compatible.
     unsigned char sm[64 + MESSAGE_LEN];
-    memmove(sm, announcement_ed25519, 32);
-    memmove(sm + 32, aggr_sig, 32);
-    memmove(sm + 64, MESSAGE, MESSAGE_LEN);
+    prepare_final_signature(sm,part_sigs,aggr_announcement, MESSAGE, MESSAGE_LEN, NR_SIGNERS);
 
+    // Now, the verification using the standard libsodium's verification equation will work.
     unsigned char unsigned_message[MESSAGE_LEN];
     unsigned long long unsigned_message_len;
 
+    printf("First verification: ");
     if (crypto_sign_open(unsigned_message, &unsigned_message_len, sm, 64 + MESSAGE_LEN, pk_ed25519) != 0) {
         printf("Translated signature failed\n");
         return -1;
@@ -147,24 +127,10 @@ int main(int argc, char **argv) {
     }
 
     // And finally, we aggregate the different signatures
-    unsigned char aggr_sig_2[crypto_core_ristretto255_SCALARBYTES];
-    aggr_partial_sigs(aggr_sig_2, part_sigs_2, NR_SIGNERS);
+    unsigned char sm_2[64 + MESSAGE_2_LEN];
+    prepare_final_signature(sm_2,part_sigs_2,aggr_announcement_2, MESSAGE_2, MESSAGE_2_LEN, NR_SIGNERS);
 
     // VERIFICATION //
-    // The public key was already mapped previously to the prime order subgroup, hence we only need to map
-    // the new announcement.
-    unsigned char announcement_ed25519_2[crypto_core_ed25519_BYTES];
-
-    if (map_ristretto_prime_subgroup(announcement_ed25519_2, aggr_announcement_2) == -1) {
-        printf("conversion went wrong");
-    }
-
-    // We pad the announcement, response, and message in one value
-    unsigned char sm_2[64 + MESSAGE_2_LEN];
-    memmove(sm_2, announcement_ed25519_2, 32);
-    memmove(sm_2 + 32, aggr_sig_2, 32);
-    memmove(sm_2 + 64, MESSAGE_2, MESSAGE_2_LEN);
-
     unsigned char unsigned_message_2[MESSAGE_2_LEN];
     unsigned long long unsigned_message_len_2;
 
@@ -178,11 +144,10 @@ int main(int argc, char **argv) {
         printf("Translated signature worked!\n");
     }
 
-    // finally, we simply ensure that the verification function does not always output true
-    unsigned char invalid_sm[64 + MESSAGE_2_LEN];
-    memmove(invalid_sm, announcement_ed25519_2, 32);
-    memmove(invalid_sm + 32, aggr_sig_2, 32);
-    memmove(invalid_sm + 64, MESSAGE, MESSAGE_LEN);
+    // finally, we simply ensure that the verification function does not always output true. We try to verify
+    // the second signature with the first message.
+    unsigned char invalid_sm[64 + MESSAGE_LEN];
+    prepare_final_signature(invalid_sm, part_sigs_2, aggr_announcement_2, MESSAGE, MESSAGE_LEN, NR_SIGNERS);
     if (crypto_sign_open(unsigned_message_2, &unsigned_message_len_2, invalid_sm, 64 + MESSAGE_LEN, pk_ed25519) == 0) {
         printf("This should not validate\n");
     }
