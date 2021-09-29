@@ -4,3 +4,4 @@ musig2test.dSYM/
 
 # musgi2test artifacts
 /aggregate.pub
+/valid.signed

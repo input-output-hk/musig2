@@ -125,6 +125,14 @@ int main(int argc, char **argv) {
   prepare_final_signature(sm, part_sigs, aggr_announcement, MESSAGE,
                           MESSAGE_LEN, NR_SIGNERS);
 
+  // Dump correcly signed message for testing verification within Haskell
+  const char *fn_sm = "valid.signed";
+  if (writeBytes(fn_sm, sm, 64 + MESSAGE_LEN) != 0) {
+    perror("Failed writing signed message");
+    return EXIT_FAILURE;
+  }
+  printf("Written signed message to: %s\n", fn_sm);
+
   // Now, the verification using the standard libsodium's verification equation
   // will work.
   unsigned char unsigned_message[MESSAGE_LEN];
