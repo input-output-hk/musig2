@@ -5,6 +5,19 @@
 #include <sodium.h>
 #include <string.h>
 
+int writeBytes(const char *fn, unsigned char *bytes, size_t count) {
+  FILE *fp = fopen(fn, "w+");
+  if (!fp) {
+    return EXIT_FAILURE;
+  }
+  if (fwrite(bytes, sizeof(unsigned char), crypto_core_ed25519_BYTES, fp) !=
+      crypto_core_ed25519_BYTES) {
+    printf("not all bytes written to %s", fn);
+    return EXIT_FAILURE;
+  }
+  return fclose(fp);
+}
+
 int main(int argc, char **argv) {
   // Number of signers
   const int NR_SIGNERS = 5;
@@ -45,6 +58,13 @@ int main(int argc, char **argv) {
     // then this check will never fail.
     printf("aggregated pk is not a valid ristretto point");
   }
+  // Dump the ed25519 pubkey for testing verification within Haskell
+  const char *fn_ed25519 = "aggregate.pub";
+  if (writeBytes(fn_ed25519, pk_ed25519, crypto_core_ed25519_BYTES) != 0) {
+    perror("Failed writing Ed25519 key");
+    return EXIT_FAILURE;
+  }
+  printf("Written aggregate ed25519 key to: %s\n", fn_ed25519);
 
   unsigned char
       public_exponents[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
