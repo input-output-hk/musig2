@@ -20,6 +20,11 @@ make
 ./musig2test
 ```
 
+## Build in nix-shell
+
+The provided `shell.nix` provides build tools and the right version of
+`libsodium`, so simply using `nix-shell` and `make` is sufficient to build.
+
 # Disclaimer
 This code is work in progress, and has not been audited. Do not use in production. 
 
