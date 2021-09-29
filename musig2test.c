@@ -10,8 +10,8 @@ int writeBytes(const char *fn, unsigned char *bytes, size_t count) {
   if (!fp) {
     return EXIT_FAILURE;
   }
-  if (fwrite(bytes, sizeof(unsigned char), crypto_core_ed25519_BYTES, fp) !=
-      crypto_core_ed25519_BYTES) {
+  unsigned int written = fwrite(bytes, sizeof(unsigned char), count, fp);
+  if (written != crypto_core_ed25519_BYTES) {
     printf("not all bytes written to %s", fn);
     return EXIT_FAILURE;
   }
