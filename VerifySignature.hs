@@ -15,6 +15,8 @@ main :: IO ()
 main = do
   pubKey <- throwCryptoErrorIO . publicKey =<< BS.readFile "aggregate.pub"
   verifySignature pubKey "valid.signed"
+  verifySignature pubKey "valid2.signed"
+  verifySignature pubKey "invalid.signed"
 
 verifySignature :: PublicKey -> String -> IO ()
 verifySignature pubKey fn = do
