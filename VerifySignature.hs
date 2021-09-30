@@ -13,7 +13,9 @@ import qualified Data.ByteString as BS
 
 main :: IO ()
 main = do
+  putStrLn "Loading public key: aggregate.pub"
   pubKey <- throwCryptoErrorIO . publicKey =<< BS.readFile "aggregate.pub"
+  putStrLn ""
   verifySignature pubKey "valid.signed"
   verifySignature pubKey "valid2.signed"
   verifySignature pubKey "invalid.signed"
