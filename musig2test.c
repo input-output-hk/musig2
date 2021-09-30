@@ -11,8 +11,8 @@ int writeBytes(const char *fn, unsigned char *bytes, size_t count) {
     return EXIT_FAILURE;
   }
   unsigned int written = fwrite(bytes, sizeof(unsigned char), count, fp);
-  if (written != crypto_core_ed25519_BYTES) {
-    printf("not all bytes written to %s", fn);
+  if (written != count) {
+    printf("Not all bytes written to %s", fn);
     return EXIT_FAILURE;
   }
   return fclose(fp);
@@ -170,6 +170,14 @@ int main(int argc, char **argv) {
   prepare_final_signature(sm_2, part_sigs_2, aggr_announcement_2, MESSAGE_2,
                           MESSAGE_2_LEN, NR_SIGNERS);
 
+  // Dump another correcly signed message for testing verification within Haskell
+  const char *fn_sm_2 = "valid2.signed";
+  if (writeBytes(fn_sm_2, sm_2, 64 + MESSAGE_2_LEN) != 0) {
+    perror("Failed writing signed message");
+    return EXIT_FAILURE;
+  }
+  printf("Written signed message to: %s\n", fn_sm_2);
+
   // VERIFICATION //
   unsigned char unsigned_message_2[MESSAGE_2_LEN];
   unsigned long long unsigned_message_len_2;
@@ -193,4 +201,13 @@ int main(int argc, char **argv) {
                        64 + MESSAGE_LEN, pk_ed25519) == 0) {
     printf("This should not validate\n");
   }
+
+
+  // Dump invalid signed message for testing verification within Haskell
+  const char *fn_invalid_sm = "invalid.signed";
+  if (writeBytes(fn_invalid_sm, invalid_sm, 64 + MESSAGE_LEN) != 0) {
+    perror("Failed writing signed message");
+    return EXIT_FAILURE;
+  }
+  printf("Written signed message to: %s\n", fn_invalid_sm);
 }
