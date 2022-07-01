@@ -1,131 +1,141 @@
 #include "libmusig2.h"
 
 
-int main(void) {
-	unsigned char msg[12] = "Hello World!";
-	unsigned char randomize[SK_BYTES];
-	int return_val;
-	int i, j;
+int main(void) { // user input N
+    unsigned char msg_1_hash[32];
+    unsigned char msg_2_hash[32];
+    unsigned char randomize[32];
+    int STATE = 0;
 
-	secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-	if (!fill_random(randomize, sizeof(randomize))) {
-		printf("Failed to generate randomness\n");
-		return 1;
-	}
-	return_val = secp256k1_context_randomize(ctx, randomize);
-	assert(return_val);
+    int return_val;
+    int parity = 0;
+    int i, j;
 
-    printf("******************************************************************************\n");
-    printf("********************************* MUSIG2 *************************************\n");
-    printf("******************************************************************************\n");
-
-
-
-    printf("\n**** INIT_SIGNER *************************************************************\n");
-    SIGNER* signers = (SIGNER*) malloc(sizeof (SIGNER)*N);
-    for(i=0;i<N;i++){
-        signers[i] = (SIGNER) malloc(sizeof (SIGNER));
-        INIT_Signer(ctx,signers[i]);
+    secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    if (!fill_random(randomize, sizeof(randomize))) {
+        printf("Failed to generate randomness\n");
+        return 1;
     }
-    printf("  %d Signers initialized successfully.\n", N);
-    printf("******************************************************************************\n");
+    return_val = secp256k1_context_randomize(ctx, randomize);
+    assert(return_val);
+    return_val = secp256k1_tagged_sha256(ctx, msg_1_hash, TAG_1, TAG_1_LEN, MSG_1, MSG_1_LEN);
+    assert(return_val);
+    return_val = secp256k1_tagged_sha256(ctx, msg_2_hash, TAG_2, TAG_2_LEN, MSG_2, MSG_2_LEN);
+    assert(return_val);
 
 
-    printf("\n**** SIGN_FirstRound *********************************************************\n");
-    for(i=0;i<N;i++)
-        SIGN_FirstRound(ctx,signers[i]);
-    printf("  %d Signers generated round-1 signatures.\n", N);
-    printf("******************************************************************************\n");
+    secp256k1_keypair Signers[N];                                                       // Signer Keypair List
+    secp256k1_pubkey PK_LIST[N];                                                        // Signer PUBKEY List
+    secp256k1_pubkey X_ ;                                                               // Aggregated PUBKEY
+    secp256k1_pubkey* COMM_R[N*V*NR_MSGS];                                              // Commitment Batch -> R
+    secp256k1_pubkey NONCE;                                                             // Second round aggregated R
+    secp256k1_xonly_pubkey xonly_X;                                                     // x_only aggregated PK -> schnorr verify
 
 
-    printf("\n**** AGG_SIG_FirstRound ******************************************************\n");
-    AGG_ROUND1 round1 = (AGG_ROUND1) malloc(sizeof (AGG_ROUND1));
-    round1->PK_LIST = (unsigned char**) malloc(PK_SIZE*N);
-    round1->OUT_R_LIST = (unsigned char**) malloc(PK_SIZE*V);
-    round1->R_LIST = (struct NONCE**) malloc(sizeof (struct NONCE*)*V);
-    for(j=0;j<V;j++){
-        round1->R_LIST[j] = (struct NONCE*) malloc(sizeof (struct NONCE)*N);
-        round1->R_LIST[j]->R = (unsigned char**) malloc(PK_SIZE*N);
+
+    unsigned char* s_PK_LIST[N*SK_BYTES];                                               // Signer PUBKEY List -> Serialized
+    unsigned char* exp_LIST[N*SK_BYTES];                                                // Signers' exponents list
+    unsigned char* nonce_r[N*V*NR_MSGS*SK_BYTES];                                       // Nonce Batch -> r
+    unsigned char* par_sig[N*SK_BYTES];                                                 // Partial signatures list
+    unsigned char* s_nonce[V*SK_BYTES];                                                 // Signer's secret nonce list
+    unsigned char sk[SK_BYTES];                                                         // Signer's secret key
+    unsigned char L[SK_BYTES*N];                                                        // Concatenated s_PK_LIST
+    unsigned char agg_sig[SK_BYTES];                                                    // Aggregated signatures of par_sig
+    unsigned char sx_NONCE[SK_BYTES];                                                   // Serialized x_only aggregated R
+    unsigned char signature[64];                                                        // Final Signature
+    unsigned char SX[SK_BYTES];                                                         // Serialized x_only aggregated PK
+
+
+
+
+    /* Create a keypair for each signer ******************************/
+    for(i=0; i<N; i++)
+        INIT_Signer(ctx, &Signers[i]);
+    /****************************************************************/
+
+
+
+    /* Collect signers **********************************************/
+    secp256k1_xonly_pubkey temp_xonly;
+    for(i=0; i<N; i++){
+        s_PK_LIST[i] = malloc(SK_BYTES);
+        secp256k1_keypair_pub(ctx, &PK_LIST[i], &Signers[i]);                   /* Store full-size PK of signer */
+        secp256k1_keypair_xonly_pub(ctx, &temp_xonly, &parity, &Signers[i]);    /* Get x_only PK */
+        secp256k1_xonly_pubkey_serialize(ctx, s_PK_LIST[i], &temp_xonly);       /* Store serialized x_only PK in s_PK_LIST (to compute L.) */
+        memcpy( &L[i*SK_BYTES], s_PK_LIST[i], SK_BYTES);                        /* Concat s_PK_LIST elements in L. (to compute exp.) */
+
     }
-    round1->OUT = (unsigned char*) malloc(PK_SIZE*V);
-    for(i=0;i<N;i++){
-        COLLECT_Signers(round1,signers[i]->PK, signers[i]->R,i);
+    /****************************************************************/
+
+
+
+    /* Compute exponents ********************************************/
+    CALC_Exponent(ctx, (const unsigned char **) s_PK_LIST, L, exp_LIST);
+    /****************************************************************/
+
+
+    /* Aggregate public keys ****************************************/
+    AGG_Key(ctx, PK_LIST, exp_LIST, &X_);
+    secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_X, &parity, &X_);        /* Get x_only X -> schnorr sig verification param. */
+    secp256k1_xonly_pubkey_serialize(ctx, SX, &xonly_X);                    /* Store serialized version for hashes. */
+    /****************************************************************/
+
+
+
+    /* Batch commitments ********************************************/
+    int cnt =0;
+    for(i=0; i<N; i++)
+        BATCH_Commitment(ctx, COMM_R, nonce_r, &cnt); /* NO single data type for secret nonces */
+
+    /****************************************************************/
+
+    /* Partial signatures *******************************************/
+    int index = N*V*STATE;
+    for(i=0; i<N; i++){
+        secp256k1_keypair_sec(ctx, sk, &Signers[i]);
+        par_sig[i] = (unsigned char*) malloc(SK_SIZE);
+        for(j = 0; j<V; j++){
+            s_nonce[j] = nonce_r[index+j];
+        }
+        index = index+V;
+        SIG_Partial(ctx, par_sig[i], sk, SX, COMM_R, s_nonce, sx_NONCE, &NONCE, exp_LIST[i], msg_1_hash, STATE);
     }
-    AGG_SIG_FirstRound(ctx, round1);
-    printf("  First round signatures aggregated successfully.\n");
-    for(j=0;j<V;j++){
-        printf("R%d: ",j);
-        print_hex(round1->OUT_R_LIST[j], PK_SIZE);
-    }
-    printf("******************************************************************************\n");
+    STATE++;    /* Update the state */
+    /****************************************************************/
 
 
-    printf("\n**** AGG_Key *****************************************************************\n");
-    PARAM_ROUND2 paramRound2 = (PARAM_ROUND2) malloc(sizeof (PARAM_ROUND2));
-    paramRound2->X_ = (unsigned char*) malloc(PK_SIZE);
-    paramRound2->L = (unsigned char*) malloc(PK_SIZE*N);
-    paramRound2->b = (unsigned char*) malloc(SK_SIZE);
-    paramRound2->R_state = (unsigned char*) malloc(PK_SIZE);
-
-    GEN_L((const unsigned char **) round1->PK_LIST, paramRound2->L);
-    AGG_Key(ctx,round1,paramRound2);
-    printf("  Key aggregation is done.\n");
-    printf("X_: ");
-    print_hex(paramRound2->X_, PK_SIZE);
-    printf("******************************************************************************\n");
+    /* Aggregate partial signatures ********************************/
+    AGG_SIG_SecondRound(ctx, par_sig, agg_sig);
+    /****************************************************************/
 
 
-    printf("\n**** SET_Param ***************************************************************\n");
-    SET_Param(ctx,paramRound2,round1,msg);
-    printf("  Second round parameters are set.\n");
-    printf("******************************************************************************\n");
+    /* Set 64-Byte Signature ***************************************/
+    memcpy(&signature[0], sx_NONCE, SK_BYTES);
+    memcpy(&signature[SK_BYTES], agg_sig, SK_BYTES);
+    /****************************************************************/
 
 
-    printf("\n**** SIG_SecondRound *********************************************************\n");
-    unsigned char** SIG_LIST = (unsigned char **) malloc(SK_SIZE*N);
-    for(i=0;i<N;i++){
-        SIG_LIST[i] = (unsigned char *) malloc(SK_SIZE);
-        SIG_SecondRound(ctx,paramRound2,signers[i], SIG_LIST[i], msg);
-    }
-    printf("  Second round signatures generated successfully.\n");
-    for(i=0;i<N;i++){
-        printf("s%d: ",i+1);
-        print_hex(SIG_LIST[i], SK_SIZE);
-    }
-    printf("******************************************************************************\n");
 
-
-    printf("\n**** AGG_SIG_SecondRound *****************************************************\n");
-    unsigned char* MUSIG2 = (unsigned char *) malloc(SK_SIZE);
-    AGG_SIG_SecondRound(ctx,SIG_LIST,MUSIG2);
-    printf("  Second round signatures aggregated successfully.\n");
-    printf("MuSig2: ");
-    print_hex(MUSIG2, SK_SIZE);
-    printf("******************************************************************************\n");
-
-
-    printf("\n**** VER_Musig2 **************************************************************\n");
-    VER_MUSIG2 verMusig2 = (VER_MUSIG2) malloc(sizeof (VER_MUSIG2));
-    verMusig2->out = (unsigned char*) malloc(SK_SIZE);
-    verMusig2->STATE = (unsigned char*) malloc(PK_SIZE);
-    verMusig2->X = (unsigned char*) malloc(PK_SIZE);
-
-    for (i = 0; i < SK_SIZE; i++)
-        verMusig2->out[i] = MUSIG2[i];
-
-    for (i = 0; i < PK_SIZE; i++){
-        verMusig2->STATE[i] = paramRound2->R_state[i];
-        verMusig2->X[i] = paramRound2->X_[i];
-    }
-
-    if(VER_Musig2(ctx, verMusig2, msg)){
-        printf("    MuSig2 is VALID!\n");
-    }
+    /* Verify MuSig2 with library function ************************/
+    if (secp256k1_schnorrsig_verify(ctx, signature, msg_1_hash, 32, &xonly_X))
+        printf("Schnorrsig verification: Musig2 is valid!\n");
     else
-        printf("    Failed to verify MuSig2!\n");
-    printf("******************************************************************************\n");
+        printf("Schnorrsig verification: Musig2 is INVALID!\n");
+    /****************************************************************/
 
 
+    /***********************************************************************************************/
+    /****************************************** TESTS **********************************************/
+    /***********************************************************************************************/
 
+    /* VERIFY MUSIG2 MANUALLY ***************************************/
+    if (MAN_VER_SIG(ctx, agg_sig, &NONCE, &X_, msg_1_hash) == 0)
+        printf("Manual verification: Musig2 is valid!\n");
+    else
+        printf("Manual verification: Musig2 is INVALID\n!");
+    /****************************************************************/
+
+
+    secp256k1_context_destroy(ctx);
     return 0;
 }
