@@ -75,9 +75,13 @@ Therefore, we made a little tweak to make sure MuSig2 can be verified by `secp25
 
 3. If both _X_ and _R_ have odd y coordinates: **Negate aggregated signature _agg_sig_.** 
 
+___
 
+### Progress
 
-
+- [x] Update the function and parameter namings.
+- [x] Prevent reuse of r values.
+- [ ] Tests (Valgrind).
 
 
 
