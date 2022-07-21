@@ -1,154 +1,153 @@
-#include "libmusig2.h"
-#include "stdio.h"
+#include "src/api_musig2.h"
 
-#include <sodium.h>
-#include <string.h>
-#include <assert.h>
+int main(void) {
+    unsigned char randomize[SCALAR_BYTES];
 
-int main(int argc, char **argv) {
-    // Number of signers
-    const int NR_SIGNERS = 5;
+    int i, return_val;
 
-    // We provide an example with two messages, where parties precompute the nonces.
-    // In the precomputation scenario, it is very important
-    // that they keep state of what are the rand_nonces that they have used, otherwise
-    // their keys will be vulnerable.
-    const int NR_MESSAGES = 2;
-    int STATE = 0;
-    #define MESSAGE (const unsigned char *) "test"
-    #define MESSAGE_LEN 4
-
-    #define MESSAGE_2 (const unsigned char *) "testcallrustsign"
-    #define MESSAGE_2_LEN 16
-
-    // Parties generate their key-pairs
-    unsigned char pks[NR_SIGNERS * crypto_core_ristretto255_BYTES];
-    unsigned char sks[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
-
-    for (int i = 0; i < NR_SIGNERS; i++) {
-        keypair_gen(sks + i * crypto_core_ristretto255_SCALARBYTES, pks + i * crypto_core_ristretto255_BYTES);
+    /* Initialize the secp256k1_context to operate on secp256k1 curve.
+     * MuSig2 library generates a multi-signature in the form of the schnorr signature obtained by secp256k1_schnorrsig_sign32
+     * with the library functions of libsecp256k1, however we do not use secp256k1_schnorrsig_sign32 function.
+     * Thus, we create the context with only SECP256K1_CONTEXT_VERIFY flag instead of using
+     * SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY. */
+    secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+    if (!fill_random(randomize, sizeof(randomize))) {
+        printf("Failed to generate randomness\n");
+        return 1;
     }
+    return_val = secp256k1_context_randomize(ctx, randomize);
+    assert(return_val);
 
-    // Now that we know all the parties public keys, we can compute the (public) exponent
-    // of each party, and the aggregated public key.
-    unsigned char aggr_pk[crypto_core_ristretto255_BYTES];
-    if (aggregate_pks(aggr_pk, pks, NR_SIGNERS) == -1) {
-        printf("some party misbehaved, and incorrectly generated their keys.");
+    /* Initialize the MUSIG2 parameters. */
+    MUSIG2 param = malloc(N*V*NR_MSGS*(sizeof(secp256k1_pubkey)+SCALAR_BYTES)+sizeof (secp256k1_xonly_pubkey)+SCALAR_BYTES*N+XONLY_BYTES+sizeof (int)*2);
+    param->R_LIST = malloc(sizeof(secp256k1_pubkey)*N*V*NR_MSGS);
+    param->xonly_X_ = malloc(sizeof (secp256k1_xonly_pubkey));
+    param->r_LIST = malloc(SCALAR_BYTES*N*V*NR_MSGS);
+    param->a_LIST = malloc(SCALAR_BYTES*N);
+    param->ser_xonly_X_ = malloc(XONLY_BYTES);
+    param->STATE = 0;
+
+    /* Initialize a list of N signers. */
+    SIGNER* signer_LIST = malloc(sizeof (SIGNER)*N);
+
+
+
+    printf("--------------------------------------------------------------------------- \n");
+    printf("----------------------------- MuSig2 started ------------------------------ \n");
+    printf("--------------------------------------------------------------------------- \n");
+    printf("* Number of signers\t\t: %d\n", N);
+    printf("* Number of nonces\t\t: %d \n", V);
+    printf("* Number of messages\t: %d \n", NR_MSGS);
+    printf("--------------------------------------------------------------------------- \n");
+
+
+
+    /* Create a keypair for each signer ******************************/
+    printf("\n-------- Initialize Signers ----------------------------------------------- \n");
+    for(i=0; i<N; i++){
+        signer_LIST[i] = malloc(sizeof (SIGNER));
+        signer_LIST[i]->keypair = malloc(sizeof (secp256k1_keypair));
+        MuSig2_KeyGen(ctx, signer_LIST[i]->keypair);
     }
+    printf("* %d Signers initialized.\n", N);
+    printf("--------------------------------------------------------------------------- \n");
+    /****************************************************************/
 
-    // We can also prepare the ed25519 representative of the public key (the one that will be used by
-    // the ed25519 verifier).
-    unsigned char pk_ed25519[crypto_core_ed25519_BYTES];
-    if (map_ristretto_prime_subgroup(pk_ed25519, aggr_pk) == -1) {
-        // we've checked above that all public keys are valid. If that is the case, then this check will
-        // never fail.
-        printf("aggregated pk is not a valid ristretto point");
+
+
+    /* Collect signers **********************************************/
+    printf("\n-------- Collect Signers -------------------------------------------------- \n");
+    secp256k1_pubkey X_LIST[N];         // Signers' public key list
+    unsigned char* ser_xonly_XLIST[N];  // The list of signers' serialized public key list
+    unsigned char L[XONLY_BYTES*N];     // Concatenated ser_xonly_XLIST
+
+    /* Store full-size public keys of signers in X_LIST.
+     * Get x_only version of public keys.
+     * Store serialized x_only public keys in ser_xonly_XLIST (to compute L).
+     * Concat the elements of ser_xonly_XLIST in L (to compute a). */
+    for(i=0; i<N; i++){
+        secp256k1_xonly_pubkey xonly_TEMP;
+        ser_xonly_XLIST[i] = malloc(XONLY_BYTES);
+        if (secp256k1_keypair_pub(ctx, &X_LIST[i], signer_LIST[i]->keypair) &&
+            secp256k1_keypair_xonly_pub(ctx, &xonly_TEMP, NULL, signer_LIST[i]->keypair))
+        {
+            secp256k1_xonly_pubkey_serialize(ctx, ser_xonly_XLIST[i], &xonly_TEMP);
+            printf("* X%d: ", i+1);
+            print_hex(ser_xonly_XLIST[i], XONLY_BYTES);
+            memcpy( &L[i*XONLY_BYTES], ser_xonly_XLIST[i], XONLY_BYTES);
+        }
     }
+    printf("* %d Signers collected.\n", N);
+    printf("--------------------------------------------------------------------------- \n");
+    /****************************************************************/
 
-    unsigned char public_exponents[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
-    for (int i = 0; i < NR_SIGNERS; i++) {
-        compute_exponent(public_exponents + i * crypto_core_ristretto255_SCALARBYTES, pks, i, NR_SIGNERS);
+
+
+    /* Compute exponents of signers => a ****************************/
+    printf("\n-------- Compute Exponents ------------------------------------------------ \n");
+    MuSig2_KeyAggCoef(ctx, ser_xonly_XLIST, param->a_LIST, L, N);
+    printf("* Exponents computed.\n");
+    printf("--------------------------------------------------------------------------- \n");
+    /****************************************************************/
+
+
+
+    /* Aggregate public keys ****************************************/
+    printf("\n-------- Aggregate Public Keys -------------------------------------------- \n");
+    secp256k1_pubkey X_ ;   // Aggregated public key
+    int parity_X_ = 0;      // The parity of xonly_X_
+    MuSig2_KeyAgg(ctx, X_LIST, &X_, param->xonly_X_, param->ser_xonly_X_, param->a_LIST, &parity_X_, N);
+    printf("* Public keys aggregated in X_.\n* X_: ");
+    print_hex(param->ser_xonly_X_, XONLY_BYTES);
+    param->parity_X_ = parity_X_;
+    printf("--------------------------------------------------------------------------- \n");
+    /****************************************************************/
+
+
+
+    /* Batch commitments ********************************************/
+    printf("\n-------- Generate Commitments --------------------------------------------- \n");
+    for(i=0; i<N; i++){
+        signer_LIST[i]->r_LIST = malloc(SCALAR_BYTES*V*NR_MSGS);
+        MuSig2_BatchCommitment(ctx, param->R_LIST, signer_LIST[i]->r_LIST, i, N, NR_MSGS, V);
     }
+    printf("* Commitments generated.\n");
+    printf("--------------------------------------------------------------------------- \n");
+    /****************************************************************/
 
-    // Now each party generates their batched randomness---note that here signers do not
-    // need to know the pks of other participants nor the message. Once they precompute all
-    // randomness, they send the commitment over the broadcast channel. The nonces themselves
-    // MUST NOT be sent to other parties.
-    unsigned char rand_comm[NR_MESSAGES * NR_SIGNERS * NR_V * crypto_core_ristretto255_BYTES];
-    unsigned char rand_nonc[NR_MESSAGES * NR_SIGNERS * NR_V * crypto_core_ristretto255_SCALARBYTES];
 
-    for (int i = 0; i < NR_SIGNERS; i++) {
-        batch_commit(rand_comm + i * NR_MESSAGES * NR_V * crypto_core_ristretto255_BYTES,
-               rand_nonc + i * NR_MESSAGES * NR_V * crypto_core_ristretto255_SCALARBYTES,
-               NR_MESSAGES);
-    }
 
-    // Now parties generate their partial signature for message 1. They broadcast their
-    // partial signature to the other participants. Alternatively, this can be sent
-    // to a single aggregator, or to the verifier.
-    unsigned char part_sigs[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
-    // The aggr_announcement is the same for all signers, hence we only need one variable.
-    unsigned char aggr_announcement[crypto_core_ristretto255_BYTES];
+    /* Signature for MSG_1 ******************************************/
+    printf("\n*************************************************************************** \n");
+    printf("--------- Signing Started ------------------------------------------------- \n");
+    printf("* State\t\t: %d \n", param->STATE+1);
+    printf("* Message\t: ");
+    printf("%s\n", MSG_1);
+    printf("--------------------------------------------------------------------------- \n");
+    if (Gen_MuSig2(ctx, signer_LIST, param, MSG_1, TAG_1))
+        printf("* Musig2 is verified successfully!\n");
+    else
+        printf("* Verification failed!\n");
+    param->STATE++; /* Update state after each signature. */
+    printf("*************************************************************************** \n");
+    /****************************************************************/
 
-    for (int i = 0; i < NR_SIGNERS; i++) {
-        partial_signature(part_sigs + i * crypto_core_ristretto255_SCALARBYTES,
-                          aggr_announcement,
-                          aggr_pk,
-                          sks + i * crypto_core_ristretto255_SCALARBYTES,
-                          rand_nonc + STATE * NR_SIGNERS * NR_V * crypto_core_ristretto255_SCALARBYTES + i * NR_V * crypto_core_ristretto255_SCALARBYTES,
-                          rand_comm + STATE * NR_SIGNERS * NR_V * crypto_core_ristretto255_BYTES,
-                          public_exponents + i * crypto_core_ristretto255_SCALARBYTES,
-                          MESSAGE,
-                          MESSAGE_LEN,
-                          NR_SIGNERS);
-    }
 
-    // At each signature, the state needs to be updated
-    STATE = 1;
 
-    // As a safety measure, the nonce used should be safely deleted. This could be done by overwriting random
-    // bytes. Overwriting zeroes should only be done if before signing the nodes check that the nonces are
-    // not zero. Otherwise, using a nonce full of zeros is a security vulnerability.
+    /* Signature for MSG_2 ******************************************/
+    printf("\n*************************************************************************** \n");
+    printf("--------- Signing Started ------------------------------------------------- \n");
+    printf("* State\t\t: %d \n", param->STATE+1);
+    printf("* Message\t: ");
+    printf("%s\n", MSG_2);
+    printf("--------------------------------------------------------------------------- \n");
+    if (Gen_MuSig2(ctx, signer_LIST, param, MSG_2, TAG_2))
+        printf("* Musig2 is verified successfully!\n");
+    else
+        printf("* Verification failed!\n");
+    param->STATE++; /* Update state after each signature. */
+    printf("*************************************************************************** \n");
 
-    // And finally, the different parties (or the aggregator) aggregate the different signatures, and prepare
-    // them to be ed25519 compatible.
-    unsigned char sm[64 + MESSAGE_LEN];
-    prepare_final_signature(sm,part_sigs,aggr_announcement, MESSAGE, MESSAGE_LEN, NR_SIGNERS);
-
-    // Now, the verification using the standard libsodium's verification equation will work.
-    unsigned char unsigned_message[MESSAGE_LEN];
-    unsigned long long unsigned_message_len;
-
-    printf("First verification: ");
-    if (crypto_sign_open(unsigned_message, &unsigned_message_len, sm, 64 + MESSAGE_LEN, pk_ed25519) != 0) {
-        printf("Translated signature failed\n");
-        return -1;
-    }
-    else {
-        printf("Translated signature worked!\n");
-    }
-
-    // Second message //
-    // Now that we have precomputed the nonces, we can directly compute the signature
-    unsigned char part_sigs_2[NR_SIGNERS * crypto_core_ristretto255_SCALARBYTES];
-    unsigned char aggr_announcement_2[crypto_core_ristretto255_BYTES];
-
-    for (int i = 0; i < NR_SIGNERS; i++) {
-        partial_signature(part_sigs_2 + i * crypto_core_ristretto255_SCALARBYTES,
-                          aggr_announcement_2,
-                          aggr_pk,
-                          sks + i * crypto_core_ristretto255_SCALARBYTES,
-                          rand_nonc + STATE * NR_V * crypto_core_ristretto255_SCALARBYTES + i * NR_V * crypto_core_ristretto255_SCALARBYTES,
-                          rand_comm + STATE * NR_V * crypto_core_ristretto255_BYTES,
-                          public_exponents + i * crypto_core_ristretto255_SCALARBYTES,
-                          MESSAGE_2,
-                          MESSAGE_2_LEN,
-                          NR_SIGNERS);
-    }
-
-    // And finally, we aggregate the different signatures
-    unsigned char sm_2[64 + MESSAGE_2_LEN];
-    prepare_final_signature(sm_2,part_sigs_2,aggr_announcement_2, MESSAGE_2, MESSAGE_2_LEN, NR_SIGNERS);
-
-    // VERIFICATION //
-    unsigned char unsigned_message_2[MESSAGE_2_LEN];
-    unsigned long long unsigned_message_len_2;
-
-    printf("Second verification: ");
-    // now we check the signature! We use the same aggregate public key as before.
-    if (crypto_sign_open(unsigned_message_2, &unsigned_message_len_2, sm_2, 64 + MESSAGE_2_LEN, pk_ed25519) != 0) {
-        printf("Translated signature failed\n");
-        return -1;
-    }
-    else {
-        printf("Translated signature worked!\n");
-    }
-
-    // finally, we simply ensure that the verification function does not always output true. We try to verify
-    // the second signature with the first message.
-    unsigned char invalid_sm[64 + MESSAGE_LEN];
-    prepare_final_signature(invalid_sm, part_sigs_2, aggr_announcement_2, MESSAGE, MESSAGE_LEN, NR_SIGNERS);
-    if (crypto_sign_open(unsigned_message_2, &unsigned_message_len_2, invalid_sm, 64 + MESSAGE_LEN, pk_ed25519) == 0) {
-        printf("This should not validate\n");
-    }
+    secp256k1_context_destroy(ctx);
+    return 0;
 }
