@@ -19,16 +19,16 @@ int main(void) {
     assert(return_val);
 
     /* Initialize the MUSIG2 parameters. */
-    MUSIG2 param = malloc(N*V*NR_MSGS*(sizeof(secp256k1_pubkey)+SCALAR_BYTES)+sizeof (secp256k1_xonly_pubkey)+SCALAR_BYTES*N+XONLY_BYTES+sizeof (int)*2);
-    param->R_LIST = malloc(sizeof(secp256k1_pubkey)*N*V*NR_MSGS);
-    param->xonly_X_ = malloc(sizeof (secp256k1_xonly_pubkey));
-    param->r_LIST = malloc(SCALAR_BYTES*N*V*NR_MSGS);
-    param->a_LIST = malloc(SCALAR_BYTES*N);
-    param->ser_xonly_X_ = malloc(XONLY_BYTES);
-    param->STATE = 0;
+    MUSIG2_t param;
+    param.R_LIST = malloc(sizeof(secp256k1_pubkey*) * N * V * NR_MSGS);
+    param.xonly_X_ = malloc(sizeof(secp256k1_xonly_pubkey));
+    param.r_LIST = malloc(sizeof(char*) * N * V * NR_MSGS);
+    param.a_LIST = malloc(sizeof(char*) * N);
+    param.ser_xonly_X_ = malloc(XONLY_BYTES);
+    param.STATE = 0;
 
     /* Initialize a list of N signers. */
-    SIGNER* signer_LIST = malloc(sizeof (SIGNER)*N);
+    SIGNER* signer_LIST = malloc(sizeof (SIGNER) * N);
 
 
 
@@ -85,7 +85,7 @@ int main(void) {
 
     /* Compute exponents of signers => a ****************************/
     printf("\n-------- Compute Exponents ------------------------------------------------ \n");
-    MuSig2_KeyAggCoef(ctx, ser_xonly_XLIST, param->a_LIST, L, N);
+    MuSig2_KeyAggCoef(ctx, ser_xonly_XLIST, param.a_LIST, L, N);
     printf("* Exponents computed.\n");
     printf("--------------------------------------------------------------------------- \n");
     /****************************************************************/
@@ -96,10 +96,10 @@ int main(void) {
     printf("\n-------- Aggregate Public Keys -------------------------------------------- \n");
     secp256k1_pubkey X_ ;   // Aggregated public key
     int parity_X_ = 0;      // The parity of xonly_X_
-    MuSig2_KeyAgg(ctx, X_LIST, &X_, param->xonly_X_, param->ser_xonly_X_, param->a_LIST, &parity_X_, N);
+    MuSig2_KeyAgg(ctx, X_LIST, &X_, param.xonly_X_, param.ser_xonly_X_, param.a_LIST, &parity_X_, N);
     printf("* Public keys aggregated in X_.\n* X_: ");
-    print_hex(param->ser_xonly_X_, XONLY_BYTES);
-    param->parity_X_ = parity_X_;
+    print_hex(param.ser_xonly_X_, XONLY_BYTES);
+    param.parity_X_ = parity_X_;
     printf("--------------------------------------------------------------------------- \n");
     /****************************************************************/
 
@@ -108,8 +108,8 @@ int main(void) {
     /* Batch commitments ********************************************/
     printf("\n-------- Generate Commitments --------------------------------------------- \n");
     for(i=0; i<N; i++){
-        signer_LIST[i]->r_LIST = malloc(SCALAR_BYTES*V*NR_MSGS);
-        MuSig2_BatchCommitment(ctx, param->R_LIST, signer_LIST[i]->r_LIST, i, N, NR_MSGS, V);
+        signer_LIST[i]->r_LIST = malloc(sizeof (char*) * V * NR_MSGS);
+        MuSig2_BatchCommitment(ctx, param.R_LIST, signer_LIST[i]->r_LIST, i, N, NR_MSGS, V);
     }
     printf("* Commitments generated.\n");
     printf("--------------------------------------------------------------------------- \n");
@@ -120,15 +120,15 @@ int main(void) {
     /* Signature for MSG_1 ******************************************/
     printf("\n*************************************************************************** \n");
     printf("--------- Signing Started ------------------------------------------------- \n");
-    printf("* State\t\t: %d \n", param->STATE+1);
+    printf("* State\t\t: %d \n", param.STATE+1);
     printf("* Message\t: ");
     printf("%s\n", MSG_1);
     printf("--------------------------------------------------------------------------- \n");
-    if (Gen_MuSig2(ctx, signer_LIST, param, MSG_1, TAG_1))
+    if (Gen_MuSig2(ctx, signer_LIST, &param, MSG_1, TAG_1))
         printf("* Musig2 is verified successfully!\n");
     else
         printf("* Verification failed!\n");
-    param->STATE++; /* Update state after each signature. */
+    param.STATE++; /* Update state after each signature. */
     printf("*************************************************************************** \n");
     /****************************************************************/
 
@@ -137,15 +137,15 @@ int main(void) {
     /* Signature for MSG_2 ******************************************/
     printf("\n*************************************************************************** \n");
     printf("--------- Signing Started ------------------------------------------------- \n");
-    printf("* State\t\t: %d \n", param->STATE+1);
+    printf("* State\t\t: %d \n", param.STATE+1);
     printf("* Message\t: ");
     printf("%s\n", MSG_2);
     printf("--------------------------------------------------------------------------- \n");
-    if (Gen_MuSig2(ctx, signer_LIST, param, MSG_2, TAG_2))
+    if (Gen_MuSig2(ctx, signer_LIST, &param, MSG_2, TAG_2))
         printf("* Musig2 is verified successfully!\n");
     else
         printf("* Verification failed!\n");
-    param->STATE++; /* Update state after each signature. */
+    param.STATE++; /* Update state after each signature. */
     printf("*************************************************************************** \n");
 
     secp256k1_context_destroy(ctx);
