@@ -28,7 +28,7 @@ typedef struct{
     unsigned char *ser_xonly_X_;
     int parity_X_;
     int STATE;
-}MUSIG2_t[0], *MUSIG2;
+}MUSIG2_t, *MUSIG2;
 
 /** Pointer     : SIGNER
  *  Purpose     : Stores the parameters of a MuSig2 signer.
@@ -38,7 +38,7 @@ typedef struct{
 typedef struct{
     secp256k1_keypair *keypair;
     unsigned char **r_LIST;
-}SIGNER_t[0], *SIGNER;
+}SIGNER_t, *SIGNER;
 
 
 /** Function    : Gen_MuSig2
