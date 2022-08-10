@@ -1,55 +1,86 @@
+#include "config.h"
 #include "libmusig2.h"
 
-#define N               5 /* Number of signers */
-#define V               2 /* Number of nonce values. Note that V>2 is not working yet. */
-
-#define NR_MSGS         (const int)2
-#define MSG_1           (const unsigned char *) "Musig2 Schnorr MSG 1"
-#define MSG_2           (const unsigned char *) "Musig2 Schnorr MSG 2"
-#define TAG_1           (const unsigned char *) "MSG_1"
-#define TAG_2           (const unsigned char *) "MSG_2"
 
 
-/** Pointer     : MUSIG2
- *  Purpose     : Stores the parameters used in Musig2 generation.
- *  Parameters  : R_LIST, the secp256k1_pubkey array of public batch commitments.
- *              : xonly_X_, the x_only aggregated public key of X_.
- *              : r_LIST, the array of batch nonces of size 32-bytes.
- *              : a_LIST, the array of exponents of size 32-bytes.
- *              : ser_xonly_X_, the serialized xonly_X_.
- *              : parity_X_, the parity of xonly_X_.
- *              : STATE, the current state of Musig2.
+/** Function    : musig2_init_signer
+ *  Purpose     : Initializes a musig2 signer. Generates the keypair and creates a list of batch commitments for  signer.
+ *  Parameters  : IN/OUT    : mcs, A musig2_context_sig object including parameters of musig2 signer.
  * */
-typedef struct{
-    secp256k1_pubkey **R_LIST;
-    secp256k1_xonly_pubkey *xonly_X_;
-    unsigned char **r_LIST;
-    unsigned char **a_LIST;
-    unsigned char *ser_xonly_X_;
-    int parity_X_;
-    int STATE;
-}MUSIG2_t, *MUSIG2;
+void musig2_init_signer(musig2_context_sig *mc);
 
-/** Pointer     : SIGNER
- *  Purpose     : Stores the parameters of a MuSig2 signer.
- *  Parameters  : keypair, the secp256k1_keypair object holding a keypair on secp256k1 curve.
- *              : r_LIST, the list to store V secret nonces of size 32-bytes.
+/** Function    : musig2_agg_R
+ *  Purpose     : Aggregates the given list of batch commitments of `n` signers for `V` into `agg_R_list`.
+ *                Returns 1 if agg_R_list is created successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mcs, A musig2_context_sig object including parameters of musig2 signer.
+ *              : IN        : batch_list: The list of batch commitments.
+ *                          : n: Number of signers.
+ * Returns      : 1/0.
  * */
-typedef struct{
-    secp256k1_keypair *keypair;
-    unsigned char **r_LIST;
-}SIGNER_t, *SIGNER;
+int musig2_agg_R(musig2_context_sig *mcs, secp256k1_pubkey *batch_list, int n);
 
-
-/** Function    : Gen_MuSig2
- *  Purpose     : This is the main function to compute a whole process of Musig2 for a specific message and defined parameters.
- *                It returns 1 if the generated signature is validated by secp256k1_schnorrsig_verify function, 0 otherwise.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : Signers, the list of secp256k1_keypair objects of signers.
- *                          : msg, the message to be signed.
- *                          : the tag of the hash function for msg.
- *                          : param, is a pointer to parameters of Musig2.
- *  Returns     : 1/0.
+/** Function    : musig2_sign
+ *  Purpose     : Starts the signature process for signer and calls `musig2_sign_partial`.
+ *                Returns 1 if partial signature is created successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mcs, A musig2_context_sig object including parameters of musig2 signer.
+ *              : IN        : msg: The message to be signed.
+ *                          : tag: The tag of the message.
+ *                          : n: Number of signers.
+ * Returns      : 1/0.
  * */
-int Gen_MuSig2(secp256k1_context *ctx, SIGNER *Signers, MUSIG2 param, const unsigned char *msg, const unsigned char *tag);
-/*----------------------------------------------------------------------------------------------------------*/
+int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, const unsigned char *tag, int n);
+
+/** Function    : musig2_init_aggregator
+ *  Purpose     : Initializes the musig2 aggregator. For the given list of public keys, computes aggregated public key.
+ *                Sets the aggregated commitment R.
+ *  Parameters  : IN/OUT    : mca, A musig2_context_agg object including parameters of musig2 aggregator.
+ *              : IN        : pk_list: The list of public keys.
+ *                          : R: Aggregated commitment R.
+ *                          : n: Number of signers.
+ * */
+void musig2_init_aggregator(musig2_context_agg *mca, secp256k1_pubkey *pk_list, secp256k1_pubkey R, int n);
+
+/** Function    : musig2_aggregate_parsig
+ *  Purpose     : Aggregates the given list of partial signatures. Sets the musig2 signature.
+ *                Returns 1 if musig2 signature is created successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mca, A musig2_context_agg object including parameters of musig2 aggregator.
+ *              : IN        : parsig_list: The list of partial signatures.
+ *                          : n: Number of signers.
+ * Returns      : 1/0.
+ * */
+int musig2_aggregate_parsig(musig2_context_agg *mca, unsigned char **parsig_list, int n);
+
+/** Function    : musig2_init_verifier
+ *  Purpose     : Initializes a musig2 verifier.
+ *  Parameters  : IN/OUT    : mca, A musig2_context_ver object including parameters of musig2 verifier.
+ *              : IN        : signature: The list of partial signatures.
+ *                          : X: Public key.
+ * */
+void musig2_init_verifier(musig2_context_ver *mcv, unsigned char *signature, secp256k1_pubkey X);
+
+/** Function    : musig2_verify_musig
+ *  Purpose     : Verifies the musig2 signature with `secp256k1_schnorrsig_verify`.
+ *                Returns 1 if musig2 signature is verified successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mcv, A musig2_context_ver object including parameters of musig2 verifier.
+ *              : IN        : msg: The message to be signed.
+ *                          : tag: The tag of the message.
+ * Returns      : 1/0.
+ * */
+int musig2_verify_musig(musig2_context_ver *mcv,const unsigned char *msg, const unsigned char *tag );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

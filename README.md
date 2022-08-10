@@ -48,6 +48,7 @@ ___
 
 - [x] Update the function and parameter namings.
 - [x] Prevent reuse of r values.
+- [x] Create musig2 context to simplify the API.
 - [ ] Tests (Valgrind).
 
 
