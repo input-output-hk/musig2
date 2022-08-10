@@ -222,6 +222,7 @@ int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param){
     for(j = 0; j<V; j++){
         sr_list[j] = malloc(SCALAR_BYTES);
         return_val += !secp256k1_keypair_sec(mcs->mc->ctx, sr_list[j], mcs->commlist[index+j]);
+        mcs->commlist[index+j] = NULL;
     }
 
     /* Compute (a * x * c) */
