@@ -98,21 +98,22 @@ typedef struct{
 
 /** Function    : musig2_key_gen
  *  Purpose     : Generates a keypair for signer of type secp256k1_keypair.
- *  Parameters  : IN/OUT    : mcs, A musig2_context_sig object including signer parameters.
+ *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including signer parameters.
  * */
 void musig2_key_gen(musig2_context_sig *mcs);
 
 /** Function    : musig2_batch_commitment
  *  Purpose     : Randomly generates a secp256k1_keypair list of batch commitments of size NR_MSGS*V, for signer.
- *  Parameters  : IN/OUT    : mcs, A musig2_context_sig object including signer parameters.
+ *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including signer parameters.
+ *              : IN        : nr_msgs: Number of messages.
  * */
-void musig2_batch_commitment(musig2_context_sig *mcs) ;
+void musig2_batch_commitment(musig2_context_sig *mcs, int nr_msgs) ;
 
 /** Function    : musig2_key_agg_coef
  *  Purpose     : Computes the exponent `a` for given serialized x_only public key and concatenated public keys L.
  *                Returns 1 if key aggregation coefficient is computed successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : mc, A musig2_context object including musig2 parameters.
- *                          : a, Exponent `a`.
+ *  Parameters  : IN/OUT    : mc: A musig2_context object including musig2 parameters.
+ *                          : a: Exponent `a`.
  *              : IN        : ser_xonly_X: Serialized x_only public key of a signer.
  *                          : L: Concatenation of serialized x_only public keys of signers.
  *                          : n: Number of signers.
@@ -120,21 +121,11 @@ void musig2_batch_commitment(musig2_context_sig *mcs) ;
  * */
 int musig2_key_agg_coef(musig2_context *mc, unsigned char *ser_xonly_X, unsigned char *a, unsigned char *L, int n) ;
 
-/** Function    : musig2_aggregate_pubkey
- *  Purpose     : Aggregates the given list of public keys.
- *                Returns 1 if keys aggregated successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : mc, A musig2_context object including musig2 parameters.
- *              : IN        : pk_list, List of public keys.
- *                          : n: Number of signers.
- * Returns      : 1/0.
- * */
-int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n );
-
 /** Function    : musig2_calc_b
  *  Purpose     : Calculates b = H_non(X, (R_1, ..., R_V), msg).
  *                Returns 1 if `b` is computed successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : param, A musig2_param object including parameters to generate partial signature.
- *              : IN        : mcs, A musig2_context_sig object including parameters of musig2 signer.
+ *  Parameters  : IN/OUT    : param: A musig2_param object including parameters to generate partial signature.
+ *              : IN        : mcs: A musig2_context_sig object including parameters of musig2 signer.
  * Returns      : 1/0.
  * */
 int musig2_calc_b(musig2_context_sig *mcs, musig2_param *param);
@@ -142,24 +133,24 @@ int musig2_calc_b(musig2_context_sig *mcs, musig2_param *param);
 /** Function    : musig2_calc_R
  *  Purpose     : Calculates the aggregated commitment `R`.
  *                Returns 1 if `R` is computed successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : param, A musig2_param object including parameters to generate partial signature.
- *              : IN        : mcs, A musig2_context_sig object including parameters of musig2 signer.
+ *  Parameters  : IN/OUT    : param: A musig2_param object including parameters to generate partial signature.
+ *              : IN        : mcs: A musig2_context_sig object including parameters of musig2 signer.
  * Returns      : 1/0.
  * */
 int musig2_calc_R(musig2_context_sig *mcs, musig2_param *param);
 
 /** Function    : musig2_calc_c
  *  Purpose     : Calculates the challenge c.
- *  Parameters  : IN/OUT    : param, A musig2_param object including parameters to generate partial signature.
- *              : IN        : mcs, A musig2_context_sig object including parameters of musig2 signer.
+ *  Parameters  : IN/OUT    : param: A musig2_param object including parameters to generate partial signature.
+ *              : IN        : mcs: A musig2_context_sig object including parameters of musig2 signer.
  * */
 void musig2_calc_c(musig2_context *mc, musig2_param *param);
 
 /** Function    : musig2_set_parsig
  *  Purpose     : Generates the partial signature of the signer.
  *                Returns 1 if the partial signature is computed successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : mcs, A musig2_context_sig object including parameters of musig2 signer.
- *              : IN        : param, A musig2_param object including parameters to generate partial signature.
+ *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
+ *              : IN        : param: A musig2_param object including parameters to generate partial signature.
  * Returns      : 1/0.
  * */
 int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param);
@@ -167,8 +158,8 @@ int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param);
 /** Function    : musig2_sign_partial
  *  Purpose     : Generates the partial signature of the signer.
  *                Returns 1 if the partial signature is computed successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : mcs, A musig2_context_sig object including parameters of musig2 signer.
- *              : IN        : param, A musig2_param object including parameters to generate partial signature.
+ *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
+ *              : IN        : param: A musig2_param object including parameters to generate partial signature.
  * Returns      : 1/0.
  * */
 int musig2_sign_partial(musig2_context_sig *mcs, musig2_param *param);

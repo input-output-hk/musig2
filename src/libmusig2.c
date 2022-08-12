@@ -1,5 +1,4 @@
 #include "libmusig2.h"
-#include "config.h"
 
 void musig2_key_gen(musig2_context_sig *mcs) {
     unsigned char x[SCALAR_BYTES];
@@ -16,15 +15,15 @@ void musig2_key_gen(musig2_context_sig *mcs) {
     }
 }
 
-void musig2_batch_commitment(musig2_context_sig *mcs) {
+void musig2_batch_commitment(musig2_context_sig *mcs, int nr_msgs) {
 
     unsigned char x[SCALAR_BYTES];
-    mcs->commlist = malloc(sizeof (secp256k1_keypair)* NR_MSGS *V);
+    mcs->commlist = malloc(sizeof (secp256k1_keypair)* nr_msgs *V);
 
     int i,j,k;
     i=0;
     /* Create NR_MSGS * V batch commitments for signer */
-    for (k = 0; k < NR_MSGS; k++){
+    for (k = 0; k < nr_msgs; k++){
         for (j = 0; j < V; j++) {
             mcs->commlist[i] = malloc(sizeof(secp256k1_keypair));
             while (1) {
@@ -50,42 +49,7 @@ int musig2_key_agg_coef(musig2_context *mc, unsigned char *ser_xonly_X, unsigned
     return secp256k1_tagged_sha256(mc->ctx, a, tag, sizeof (tag), concat, sizeof (concat));
 }
 
-int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n ){
 
-    int i;
-    int return_val = 0;
-    unsigned char temp_a[SCALAR_BYTES];
-    unsigned char *xonly_pk_list[n];
-    secp256k1_pubkey* temp_X_LIST[n];
-    secp256k1_xonly_pubkey temp_X;
-
-    /* Allocate memory for L */
-    mc->L = malloc(XONLY_BYTES*n);
-
-    /* Multiply X_i with a_i. Store in temp_X_LIST[i]. */
-    for(i=0; i<n;i++) {
-        xonly_pk_list[i] = malloc(XONLY_BYTES);
-        temp_X_LIST[i] = malloc(sizeof(secp256k1_pubkey));
-
-        /* Copy the current public key into temp_X_LIST */
-        memcpy(&temp_X_LIST[i]->data[0], pk_list[i].data, PK_BYTES);
-        return_val += !secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_X, NULL, temp_X_LIST[i]);
-        secp256k1_xonly_pubkey_serialize(mc->ctx, xonly_pk_list[i], &temp_X);
-
-        /* Update L */
-        memcpy(&mc->L[i * XONLY_BYTES], xonly_pk_list[i], XONLY_BYTES);
-    }
-    for(i=0; i<n;i++) {
-        /* Get the exponent `a` of current public key */
-        musig2_key_agg_coef(mc, xonly_pk_list[i], temp_a, mc->L, n);
-
-        /* Compute `X_i * a_1` */
-        return_val += !secp256k1_ec_pubkey_tweak_mul(mc->ctx, temp_X_LIST[i], temp_a);
-    }
-    /* Aggregate the public keys */
-    return_val += !secp256k1_ec_pubkey_combine(mc->ctx, &mc->X_, (const secp256k1_pubkey *const *)temp_X_LIST, n);
-    return return_val;
-}
 
 int musig2_sign_partial(musig2_context_sig *mcs, musig2_param *param){
 
