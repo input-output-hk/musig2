@@ -91,7 +91,7 @@ typedef struct{
  *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
  *              : IN        : ctx: A secp256k1_context object.
  * */
-void musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx);
+int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx);
 
 /** Function    : musig2_aggregate_pubkey
  *  Purpose     : Aggregates the given list of public keys.
