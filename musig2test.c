@@ -49,7 +49,7 @@ int main(void) {
         for (k = 0; k < NR_MSGS; k++) {
             for (j = 0; j < V; j++, l++) {
                 ind = (N * V * k) + (j * N) + i; // the index for the list of collected batches.
-                assert(secp256k1_keypair_pub(ctx, &batch_list[ind], mcs_list[i].commlist[l]));
+                assert(secp256k1_keypair_pub(ctx, &batch_list[ind], mcs_list[i].comm_list[l]));
             }
         }
     }
@@ -63,7 +63,7 @@ int main(void) {
     /**** Aggregate the public keys and batch commitments for each signer ****/
     for (i = 0; i < N; i++) {
         musig2_aggregate_pubkey(mcs_list[i].mc, pk_list);
-        musig2_agg_R(&mcs_list[i], batch_list);
+        musig2_aggregate_R(&mcs_list[i], batch_list);
     }
     printf("* Public keys aggregated.\n");
     printf("* Commitments aggregated.\n");
@@ -81,7 +81,7 @@ int main(void) {
         printf(" S%d: ", i + 1);
         print_hex(mps1[i].sig, SCALAR_BYTES);
 
-        memcpy(mps1[i].R_.data, mcs_list[i].mc->R_.data, PK_BYTES);
+        memcpy(mps1[i].R.data, mcs_list[i].mc->aggr_R.data, PK_BYTES);
     }
 
 
@@ -101,7 +101,7 @@ int main(void) {
 
     /**** Verification ****/
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_ver_musig(ctx, signature1, mca1.X_, MSG_1, MSG_1_LEN))
+    if (musig2_ver_musig(ctx, signature1, mca1.aggr_pk, MSG_1, MSG_1_LEN))
         printf("\n* Musig2 is VALID!\n");
     else
         printf("\n* Failed to verify Musig2!\n");
@@ -114,7 +114,7 @@ int main(void) {
     /**** Aggregate the public keys and batch commitments for each signer ****/
     for (i = 0; i < N; i++) {
         musig2_aggregate_pubkey(mcs_list[i].mc, pk_list);
-        musig2_agg_R(&mcs_list[i], batch_list);
+        musig2_aggregate_R(&mcs_list[i], batch_list);
     }
     printf("* Public key aggregated.\n");
     printf("* Commitments aggregated.\n");
@@ -132,7 +132,7 @@ int main(void) {
         printf(" S%d: ", i + 1);
         print_hex(mps2[i].sig, SCALAR_BYTES);
 
-        memcpy(mps2[i].R_.data, mcs_list[i].mc->R_.data, PK_BYTES);
+        memcpy(mps2[i].R.data, mcs_list[i].mc->aggr_R.data, PK_BYTES);
     }
 
 
@@ -152,7 +152,7 @@ int main(void) {
 
     /**** Verification ****/
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_ver_musig(ctx, signature2, mca2.X_, MSG_2, MSG_2_LEN ))
+    if (musig2_ver_musig(ctx, signature2, mca2.aggr_pk, MSG_2, MSG_2_LEN ))
         printf("\n* Musig2 is VALID!\n");
     else
         printf("\n* Failed to verify Musig2!\n");
