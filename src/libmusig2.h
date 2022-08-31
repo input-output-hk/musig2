@@ -7,212 +7,141 @@
 #include <secp256k1_extrakeys.h>
 #include <secp256k1_schnorrsig.h>
 #include "random.h"
+#include "../config.h"
 
 
 
-/*************************************************************************/
-/****************************** DEFINITIONS ******************************/
-/*************************************************************************/
-
-
+#define V                   2          // Number of nonce values
 #define SCALAR_BYTES       32          // SCALAR BYTES
-#define XONLY_BYTES        32          // XONLY PK BYTES
-#define PK_BYTES           64          // FULL PK BYTES
+#define XONLY_BYTES        32          // XONLY PUBLIC KEY BYTES
+#define PAR_SIG_BYTES      32          // PARTIAL SIGNATURE BYTES
+#define PK_BYTES           64          // FULL SIZE PUBLIC KEY BYTES
+#define SCH_SIG_BYTES      64          // SCHNORR SIGNATURE BYTES
 
 
-/*************************************************************************/
-/************************ FUNCTION DECLARATIONS **************************/
-/*************************************************************************/
-
-
-/** Function    : MuSig2_KeyGen
- *  Purpose     : Generates the keypair of given signer for a random secret key in given ctx.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                IN/OUT    : signer, secp256k1_keypair object.
+/** Struct      : musig2_context
+ *  Purpose     : Stores the parameters of musig2.
+ *  Parameters  : ctx: a secp256k1_context object.
+ *              : aggr_pk: Aggregated public key.
+ *              : aggr_R: Aggregated R.
+ *              : L: Concatenation of x_only public keys of signers.
+ *              : state: The state of musig2.
  * */
-void MuSig2_KeyGen(secp256k1_context *ctx,
-                   secp256k1_keypair *signer_keypair) ;
-/*----------------------------------------------------------------------------------------------------------*/
+typedef struct{
+    secp256k1_context* ctx;
+    secp256k1_pubkey aggr_pk;
+    secp256k1_pubkey aggr_R;
+    unsigned char *L;
+    int state;
+}musig2_context;
 
-
-/** Function    : MuSig2_KeyAggCoef
- *  Purpose     : Calculates the exponent "a" for the given list of serialized xonly public keys.
- *                Stores the exponents in a_LIST, returns 1 if the exponent list generated
- *                successfully, 0 otherwise.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : sxo_PK_LIST, the list of serialised public keys.
- *                          : L, concatenation of the serialised public keys.
- *                          : N, number of signers.
- *              : IN/OUT    : a_LIST, the ordered list of signers' exponents.
- * Returns      : 1/0
+/** Struct      : musig2_context_sig
+ *  Purpose     : Stores the parameters of musig2 signer.
+ *  Parameters  : mc: a musig2_context object including the parameters of musig2.
+ *              : comm_list: Batch commitment list of a signer.
+ *              : keypair: Public and secret keys of signers.
+ *              : aggr_R_list: The list of aggregated batch commitments.
  * */
-int MuSig2_KeyAggCoef(const secp256k1_context *ctx,
-                      unsigned char **ser_xonly_X_LIST, unsigned char **a_LIST, unsigned char *L,
-                      int N ) ;
-/*----------------------------------------------------------------------------------------------------------*/
+typedef struct {
+    musig2_context *mc;
+    secp256k1_keypair **comm_list;
+    secp256k1_keypair keypair;
+    secp256k1_pubkey aggr_R_list[V];
+}musig2_context_sig;
 
-
-/** Function    : MuSig2_KeyAgg
- *  Purpose     : Computes the aggregated public key X_ for given list of public keys and corresponding exponent list.
- *                Each public key is multiplied with its exponent and the results are combined in X_. The x_only version
- *                of X_ is stored in xonly_X_ and serialised x_only version is stored in ser_xonly_X_. If x_only version is the negative
- *                of the aggregated public key, parity_X_ is set to 1.  If the public keys are aggregated successfully
- *                returns 1, 0 otherwise.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : X_LIST, the list of public keys.
- *                          : a_LIST, the list of exponents.
- *                          : N, number of signers.
- *              : IN/OUT    : X_, the aggregated public key.
- *                          : xonly_X_, the x_only aggregated public key.
- *                          : ser_xonly_X_, the serialized x_only aggregated public key.
- *                          : parity_X_, parity of xo_X_.
- * Returns      : 1/0
+/** Struct      : musig2_param
+ *  Purpose     : Stores the parameters to generate a partial signature.
+ *  Parameters  : a: The exponent `a` of signer.
+ *              : b: nonce, b = H_non(X, (R_1, ..., R_V), msg).
+ *              : c: challenge, c = H_sig(X, R, msg).
+ *              : b_list: The list of `b` values, b_LIST = { b^(j-1) }.
+ *              : msg: The message to be signed.
+ *              : ser_aggr_pk: Serialized aggregated public key.
+ *              : ser_aggr_R: Serialized aggregated R.
+ *              : par_R: Parity of R.
+ *              : par_pk: Parity of aggregated pk.
+ *              : msg_len: The length of message.
  * */
-int MuSig2_KeyAgg(const secp256k1_context *ctx,
-                  secp256k1_pubkey *X_LIST, secp256k1_pubkey *X_,
-                  secp256k1_xonly_pubkey *xonly_X_,
-                  unsigned char *ser_xonly_X_, unsigned char **a_LIST,
-                  int *parity_X_, int N) ;
-/*----------------------------------------------------------------------------------------------------------*/
+typedef struct{
+    unsigned char a[SCALAR_BYTES];
+    unsigned char b[SCALAR_BYTES];
+    unsigned char c[SCALAR_BYTES];
+    unsigned char *b_LIST[V];
+    unsigned char *msg;
+    unsigned char ser_aggr_pk[XONLY_BYTES];
+    unsigned char ser_aggr_R[XONLY_BYTES];
+    int par_R;
+    int par_pk;
+    int msg_len;
+}musig2_param;
 
-
-/** Function    : MuSig2_BatchCommitment
- *  Purpose     : Generates random nonce values and stores in r_LIST. Computes corresponding commitments and stores
- *                in R_LIST. Total number of nonce-commitment is NR_MSGS * V * N.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : NR_MSGS, the number of messages.
- *                          : V, the number of nonce values.
- *              : IN/OUT    : R_LIST, the list of public commitments.
- *                          : r_LIST, the list of secret nonce values.
- *                          : cnt, the last index of commitment list to assign next entry.
+/** Struct      : musig2_partial_signatures
+ *  Purpose     : Stores the parameters to aggregate a partial signatures.
+ *  Parameters  : sig: The partial signature of a signer.
+ *              : R: The nonce of a signer.
  * */
-void MuSig2_BatchCommitment(const secp256k1_context *ctx,
-                            secp256k1_pubkey **R_LIST,
-                            unsigned char **r_LIST,
-                            int i, int N, int NR_MSGS, int V) ;
-/*----------------------------------------------------------------------------------------------------------*/
+typedef struct{
+    unsigned char sig[PAR_SIG_BYTES];
+    secp256k1_pubkey R;
+}musig2_partial_signatures;
 
 
-/** Function    : MuSig2_SignPartial
- *  Purpose     : This is the main function that generates partial signatures. It aggregate public commitments in
- *                aggr_R_LIST of size V. It calls Calc_b, Calc_R, Calc_c, and Set_sig for a signer.
- *                It negates b or c according to the parity of xonly_R or xonly_X_, respectively.
- *                If both 1, it sets parity_RX_ to 1, to negate aggregated signature at the end of the signature process.
- *                Returns 1 if partial signature is generated successfully, 0 otherwise.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : R_LIST, the secp256k1_pubkey commitment list.
- *                          : r_LIST, the list of secret nonces of signer.
- *                          : x, the secret key of signer.
- *                          : ser_xonly_X_, the serialized x_only aggregated public key.
- *                          : a, the exponent of signer.
- *                          : msg_hash, the 32-byte hash of the message to be signed.
- *                          : parity_X_, the parity of xonly_X_.
- *                          : STATE, the state of Musig2.
- *                          : N, the number of signers.
- *                          : V, the number of nonce values.
- *              : IN/OUT    : parsig, the partial signature of the signer.
- *                          : ser_xonly_R, the serialized xonly_R .
- *                          : parity_RX_, the parity for xonly_X_ and xonly_R.
- *  Returns     : 1/0.
+/** Function    : musig2_init_signer
+ *  Purpose     : Initializes a musig2 signer. Generates the keypair and creates a list of batch commitments for  signer.
+ *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
+ *              : IN        : ctx: A secp256k1_context object.
  * */
-int MuSig2_SignPartial(const secp256k1_context *ctx,
-                        secp256k1_pubkey **R_LIST,
-                        unsigned char **r_LIST, unsigned char *ser_xonly_R, unsigned char *parsig, unsigned char *x, unsigned char *ser_xonly_X_, unsigned char *a, unsigned char *msg_hash,
-                        int parity_X_, int *parity_RX_, int STATE, int N, int V) ;
-/*----------------------------------------------------------------------------------------------------------*/
+void musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx);
 
-
-/** Function    : MuSig2_AggSignatures
- *  Purpose     : Aggregates the partial signatures of N signers in parsig_LIST, stores the result in aggsig.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : parsig_LIST, the list of partial signatures.
- *                          : N, the number of signers.
- *              : IN/OUT    : aggsig, the aggregated signature.
+/** Function    : musig2_aggregate_pubkey
+ *  Purpose     : Aggregates the given list of public keys.
+ *                Returns 1 if keys aggregated successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mc: A musig2_context object including musig2 parameters.
+ *              : IN        : pk_list: List of public keys.
+ * Returns      : 1/0.
  * */
-void MuSig2_AggSignatures(const secp256k1_context *ctx,
-                          unsigned char **parsig_LIST, unsigned char *aggsig,
-                          int N) ;
-/*----------------------------------------------------------------------------------------------------------*/
+int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list);
 
-
-/*----------------------------------------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------------------------------------*/
-
-/** Function    : Calc_b
- *  Purpose     : Computes b = H(aggr_R_LIST, ser_xonly_X_, msg_hash) for given serialized x_only public key ser_xonly_X_, msg_hash, and aggr_R_LIST.
- *                Returns 1 if hash is generated successfully, 0 otherwise.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : aggr_R_LIST, the list of aggregated commitments.
- *                          : ser_xonly_X_, the serialized x_only aggregated public key.
- *                          : msg_hash, 32-byte hash of the message to be signed.
- *                          : V, the number of nonce values.
- *              : IN/OUT    : b, the 32-byte, tagged hash of ser_xonly_X_, aggr_R_LIST, and msg_hash.
- *  Returns     : 1/0.
+/** Function    : musig2_aggregate_R
+ *  Purpose     : Aggregates the given list of batch commitments of `n` signers for `V` into `aggr_R_list`.
+ *                Returns 1 if aggr_R_list is created successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
+ *              : IN        : batch_list: The list of batch commitments.
+ * Returns      : 1/0.
  * */
-int Calc_b(const secp256k1_context *ctx,
-           secp256k1_pubkey **aggr_R_LIST,
-           unsigned char *ser_xonly_X_, unsigned char *b, unsigned char *msg_hash,
-           int V) ;
-/*----------------------------------------------------------------------------------------------------------*/
+int musig2_aggregate_R(musig2_context_sig *mcs, secp256k1_pubkey *batch_list);
 
-
-/** Function    : Calc_R
- *  Purpose     : Computes b_LIST = {b^(j-1)} for j in V. Calculates Rb_LIST = {aggr_R_LIST[j] * b_LIST[j]} for j in V.
- *                Takes the sum of the values in Rb_LIST, gets x_only R with parity_R and serializes it into sxo_R.
- *                Returns 1 if b_LIST, Rb_LIST, and sxo_R are generated successfully, 0 otherwise.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : aggr_R_LIST, the list of aggregated commitments.
- *                          : b, b = Calc_b(ctx, aggr_R_LIST, ser_xonly_X_, b, msg_hash, V).
- *                          : V, the number of nonce values.
- *              : IN/OUT    : b_LIST, the list of b exponents of size V to be used to calculate R.
- *                          : ser_xonly_R, the serialized x_only R.
- *                          : parity_R, the parity of x_only R.
- *  Returns     : 1/0.
+/** Function    : musig2_sign
+ *  Purpose     : Starts the signature process for signer and calls `musig2_sign_partial`.
+ *                Returns 1 if partial signature is created successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
+ *              : IN        : msg: The message to be signed.
+ *                          : msg_len: The length of the message.
+ * Returns      : 1/0.
  * */
-int Calc_R(const secp256k1_context *ctx,
-           secp256k1_pubkey **aggr_R_LIST,
-           unsigned char **b_LIST, unsigned char *ser_xonly_R, unsigned char *b,
-           int* parity_R, int V) ;
-/*----------------------------------------------------------------------------------------------------------*/
+int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, unsigned char *parsig);
 
-
-/** Function    : Calc_c
- *  Purpose     : Computes challenge c = H(ser_xonly_R, ser_xonly_X_, msg_hash).
- *                Returns 1 if c is generated successfully, 0 otherwise.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : ser_xonly_X_, the serialized x_only aggregated public key.
- *                          : ser_xonly_R, the serialized x_only nonce R.
- *                          : msg_hash, the 32-byte hash of the message to be signed.
- *              : IN/OUT    : c, the 32-byte challenge.
- *  Returns     : 1/0.
+/** Function    : musig2_aggregate_partial_sig
+ *  Purpose     : Aggregates the given list of partial signatures. Sets the musig2 signature.
+ *                Returns 1 if musig2 signature is created successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mca: A musig2_context object.
+ *                          : signature: A musig2 signature.
+ *              : IN        : ctx: secp256k1_context object.
+ *                          : mps: The list of partial signatures and R values of signers.
+ *                          : pk_list: The list of public keys.
+ *                          : signature: The aggregated signature.
+ * Returns      : 1/0.
  * */
-int Calc_c(const secp256k1_context *ctx,
-           const unsigned char *ser_xonly_X_, unsigned char *ser_xonly_R, unsigned char *msg_hash, unsigned char *c) ;
-/*----------------------------------------------------------------------------------------------------------*/
+int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, musig2_partial_signatures *mps, secp256k1_pubkey *pk_list, unsigned char *signature);
 
-
-/** Function    : Set_parsig
- *  Purpose     : Computes the partial signature of given signer with
- *                parsig = SUM (a * c * x, (SUM(b_LIST[j] * sec_r_LIST[j])).
- *                Returns 1 if partial signature is generated successfully, 0 otherwise.
- *  Parameters  : IN        : ctx, a secp256k1_context object.
- *                          : b_LIST, the serialized x_only aggregated public key.
- *                          : sr_LIST, the list of secret nonces of signer.
- *                          : c, the 32-byte challenge.
- *                          : msg_hash, the 32-byte hash of the message to be signed.
- *                          : a, the exponent of signer
- *                          : x, the secret key of signer.
- *                          : parity_R, parity of x_only R.
- *                          : V, the number of nonce values.
- *              : IN/OUT    : parsig, the partial signature of the signer.
- *  Returns     : 1/0.
+/** Function    : musig2_ver_musig
+ *  Purpose     : Verifies the musig2 signature with `secp256k1_schnorrsig_verify`.
+ *                Returns 1 if musig2 signature is verified successfully, 0 otherwise.
+ *  Parameters  : IN        : ctx: A secp256k1_context object including parameters of musig2 verifier.
+ *                          : signature: A musig2 signature.
+ *                          : aggr_pk: Aggregated public key.
+ *                          : msg: The message to be signed.
+ *                          : msg_len: The length of the message.
+ * Returns      : 1/0.
  * */
-int Set_parsig(const secp256k1_context* ctx,
-               unsigned char **b_LIST, unsigned char **sr_LIST, unsigned char *parsig, unsigned char *c, unsigned char *a, unsigned char *x,
-               int parity_R, int V) ;
-/*----------------------------------------------------------------------------------------------------------*/
-
-
-
-
-
+int musig2_ver_musig(secp256k1_context *ctx, const unsigned char *signature, secp256k1_pubkey aggr_pk, const unsigned char *msg, int msg_len );
