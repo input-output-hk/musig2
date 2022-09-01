@@ -1,7 +1,7 @@
 
-#define N               3 // Number of signers
+#define NR_SIGNERS       3 // Number of signers
 
-#define NR_MSGS         (const int)2    // Number of messages
+#define NR_MESSAGES      (const int)2    // Number of messages
 
 
 #define MSG_1           (const unsigned char *) "The signature for Musig2 Schnorr message 1."

@@ -7,7 +7,6 @@
 #include <secp256k1_extrakeys.h>
 #include <secp256k1_schnorrsig.h>
 #include "random.h"
-#include "../config.h"
 
 
 
@@ -26,6 +25,7 @@
  *              : aggr_R: Aggregated R.
  *              : L: Concatenation of x_only public keys of signers.
  *              : state: The state of musig2.
+ *              : nr_signers: The number of signers.
  * */
 typedef struct{
     secp256k1_context* ctx;
@@ -33,6 +33,7 @@ typedef struct{
     secp256k1_pubkey aggr_R;
     unsigned char *L;
     int state;
+    int nr_signers;
 }musig2_context;
 
 /** Struct      : musig2_context_sig
@@ -41,12 +42,14 @@ typedef struct{
  *              : comm_list: Batch commitment list of a signer.
  *              : keypair: Public and secret keys of signers.
  *              : aggr_R_list: The list of aggregated batch commitments.
+ *              : nr_messages: The number of messages.
  * */
 typedef struct {
     musig2_context *mc;
     secp256k1_keypair **comm_list;
     secp256k1_keypair keypair;
     secp256k1_pubkey aggr_R_list[V];
+    int nr_messages;
 }musig2_context_sig;
 
 /** Struct      : musig2_param
@@ -90,17 +93,19 @@ typedef struct{
  *  Purpose     : Initializes a musig2 signer. Generates the keypair and creates a list of batch commitments for  signer.
  *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
  *              : IN        : ctx: A secp256k1_context object.
+ *                          : nr_messages: The number of messages.
  * */
-int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx);
+int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages);
 
 /** Function    : musig2_aggregate_pubkey
  *  Purpose     : Aggregates the given list of public keys.
  *                Returns 1 if keys aggregated successfully, 0 otherwise.
  *  Parameters  : IN/OUT    : mc: A musig2_context object including musig2 parameters.
  *              : IN        : pk_list: List of public keys.
+ *                          : nr_signers: The number of signers.
  * Returns      : 1/0.
  * */
-int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list);
+int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int nr_signers);
 
 /** Function    : musig2_aggregate_R
  *  Purpose     : Aggregates the given list of batch commitments of `n` signers for `V` into `aggr_R_list`.
@@ -130,9 +135,10 @@ int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, 
  *                          : mps: The list of partial signatures and R values of signers.
  *                          : pk_list: The list of public keys.
  *                          : signature: The aggregated signature.
+ *                          : nr_signers: The number of signers.
  * Returns      : 1/0.
  * */
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, musig2_partial_signatures *mps, secp256k1_pubkey *pk_list, unsigned char *signature);
+int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, musig2_partial_signatures *mps, secp256k1_pubkey *pk_list, unsigned char *signature, int nr_signers);
 
 /** Function    : musig2_ver_musig
  *  Purpose     : Verifies the musig2 signature with `secp256k1_schnorrsig_verify`.
