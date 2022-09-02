@@ -50,7 +50,7 @@ static void musig2_key_agg_coef(musig2_context *mc, unsigned char *ser_pk, unsig
     assert(secp256k1_tagged_sha256(mc->ctx, a, tag, sizeof (tag), temp_concat, sizeof (temp_concat)));
 }
 
-static int musig2_calc_b(musig2_context_sig *mcs, musig2_param *param) {
+static void musig2_calc_b(musig2_context_sig *mcs, musig2_param *param) {
 
     int j;
     unsigned char tag[13] = "BIP0340/nonce";    // Tag for the hash to compute b
@@ -72,7 +72,7 @@ static int musig2_calc_b(musig2_context_sig *mcs, musig2_param *param) {
     memcpy(&temp_concat[(1 + V) * XONLY_BYTES], param->msg, param->msg_len);
 
     /* Compute b */
-    return secp256k1_tagged_sha256(mcs->mc->ctx, param->b, tag, sizeof (tag), temp_concat, sizeof(temp_concat));
+    assert(secp256k1_tagged_sha256(mcs->mc->ctx, param->b, tag, sizeof (tag), temp_concat, sizeof(temp_concat)));
 
 }
 
@@ -98,7 +98,6 @@ static int musig2_calc_R(musig2_context_sig *mcs, musig2_param *param) {
                 memcpy(param->b_LIST[j], param->b, SCALAR_BYTES);
                 if (!secp256k1_ec_pubkey_tweak_mul(mcs->mc->ctx, Rb_list[j], param->b_LIST[j]))
                     return 0;
-
             }
             else{
                 memcpy(param->b_LIST[j], param->b_LIST[j-1], SCALAR_BYTES);
@@ -127,7 +126,7 @@ static int musig2_calc_R(musig2_context_sig *mcs, musig2_param *param) {
     return 1;
 }
 
-static int musig2_calc_c(musig2_context *mc, musig2_param *param) {
+static void musig2_calc_c(musig2_context *mc, musig2_param *param) {
     unsigned char tag[17] = "BIP0340/challenge";        // Tag of the hash to compute challenge.
 
     unsigned char temp_concat[XONLY_BYTES * 2 + param->msg_len];   // Temp to store ( ser_xonly_R || ser_xonly_X_ || msg_hash )
@@ -136,7 +135,7 @@ static int musig2_calc_c(musig2_context *mc, musig2_param *param) {
     memcpy(&temp_concat[XONLY_BYTES], param->ser_aggr_pk, XONLY_BYTES);
     memcpy(&temp_concat[XONLY_BYTES * 2], param->msg, param->msg_len);
 
-    return secp256k1_tagged_sha256(mc->ctx, param->c, tag , sizeof (tag), temp_concat, sizeof (temp_concat));
+    assert(secp256k1_tagged_sha256(mc->ctx, param->c, tag , sizeof (tag), temp_concat, sizeof (temp_concat)));
 }
 
 static int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param, unsigned char *parsig) {
@@ -299,12 +298,12 @@ int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, 
 
     /* Compute `b`, `R`, and `c` */
     param.par_R = 0;
-    assert(musig2_calc_b(mcs, &param));
+    musig2_calc_b(mcs, &param);
     if (!musig2_calc_R(mcs, &param)){
         printf("Failed to calculate R. \n");
         return 0;
     }
-    assert(musig2_calc_c(mcs->mc, &param));
+    musig2_calc_c(mcs->mc, &param);
 
     /* If par_R is 1, then negate b, call Calc_R again, and compute parsig */
     if (param.par_R == 1 && param.par_pk == 0){

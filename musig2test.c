@@ -91,6 +91,7 @@ int main(void) {
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
+            return -1;
         }
     }
 
@@ -109,6 +110,7 @@ int main(void) {
     }
     else {
         printf("* Failed to aggregate signatures.\n");
+        return -1;
     }
 
 
@@ -150,6 +152,7 @@ int main(void) {
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
+            return -1;
         }
     }
 
@@ -168,6 +171,7 @@ int main(void) {
     }
     else {
         printf("* Failed to aggregate signatures.\n");
+        return -1;
     }
 
 
@@ -177,7 +181,7 @@ int main(void) {
         printf("\n* Musig2 is VALID!\n");
     else
         printf("\n* Failed to verify Musig2!\n");
-    printf("--------------------------------------------------------------------------- \n\n");
+    printf("--------------------------------------------------------------------------- \n");
 
 
     /**** Destroy the context ****/
