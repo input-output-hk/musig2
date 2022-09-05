@@ -1,5 +1,5 @@
 
-#define NR_SIGNERS       3 // Number of signers
+#define NR_SIGNERS       5 // Number of signers
 
 #define NR_MESSAGES      (const int)2    // Number of messages
 

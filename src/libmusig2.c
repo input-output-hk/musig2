@@ -281,6 +281,12 @@ int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, 
     secp256k1_xonly_pubkey xonly_aggr_pk;   // x_only aggregated public key
     musig2_param param;  // Parameters used to generate partial signature
 
+    int j;
+    int index = V * mcs->mc->state;
+    for (j = 0; j < V; j++)
+        if (mcs->comm_list[index + j] == NULL)
+            return -1;
+
     /* Set the message and its length to param */
     param.msg = malloc(msg_len);
     memcpy(param.msg, msg, msg_len);
@@ -365,7 +371,7 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, mu
     /* Check whether all aggregated R is same */
     for (i = 1; i < nr_signers; i++) {
         if (secp256k1_ec_pubkey_cmp(ctx, &mps[i].R, &mps[i - 1].R) != 0){
-            return 0 ;
+            return -1 ;
         }
     }
 

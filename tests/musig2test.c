@@ -1,4 +1,4 @@
-#include "src/libmusig2.h"
+#include "../src/libmusig2.h"
 #include "config.h"
 
 
