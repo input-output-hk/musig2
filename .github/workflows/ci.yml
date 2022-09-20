@@ -1,0 +1,44 @@
+name: CI
+
+on: [push]
+
+jobs:
+  test-musig2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Set up Clang
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: latest
+          platform: x64
+
+      - name: Install gtest manually
+        run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
+      - name: Install secp256k1
+        run: |
+          sudo apt-get -y install autoconf automake libtool
+          mkdir secp256k1-sources
+          cd secp256k1-sources
+          git clone https://github.com/bitcoin-core/secp256k1.git
+          cd secp256k1
+          git reset --hard 694ce8f
+          ./autogen.sh
+          ./configure --prefix=/usr --enable-module-schnorrsig --enable-experimental
+          make
+          make check
+          sudo make install
+          cd ../..
+
+      - name: Run tests
+        run: |
+          mkdir build
+          mkdir test_musig2
+          clang -c -g src/libmusig2.c -o build/musig2.o
+          ar rcs build/libmusig2.a build/musig2.o
+          ranlib build/libmusig2.a
+          clang -x c++ -std=c++11 tests/gtestmusig2.c -g -o test_musig2/gtest -L./build -lmusig2 -lsecp256k1 -lstdc++ -lgtest -lgtest_main -pthread
+          test_musig2/gtest
