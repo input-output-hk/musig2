@@ -50,7 +50,7 @@ jobs:
         run: test_musig2/gtest
 
       - name: Run example test
-        run test_musig2/mtest
+        run: test_musig2/mtest
 
       - name: Run Valgrind
         run: valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes test_musig2/mtest
