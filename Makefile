@@ -13,7 +13,7 @@ INCLUDES = src/libmusig2.h src/random.h
 AR=ar rcs
 RANLIB=ranlib
 
-all: tests lib_musig2
+all: gtest ctest lib_musig2
 
 
 build/musig2.o: src/libmusig2.c $(INCLUDES)
@@ -24,11 +24,15 @@ lib_musig2: build/musig2.o
 	$(AR) build/libmusig2.a $^
 	$(RANLIB) build/libmusig2.a
 
-tests: lib_musig2
-	rm -rf test_musig2
-	mkdir test_musig2
-	$(CC) $(CPPFLAGS) $(GTEST_LDLIBS) tests/gtestmusig2.c -L./build -lmusig2 -o test_musig2/gtest
-	$(CC) $(CFLAGS) $(LDLIBS) tests/musig2test.c -L./build -lmusig2 -o test_musig2/mtest
+gtest: lib_musig2
+	rm -rf gtest_run
+	mkdir gtest_run
+	$(CC) $(CPPFLAGS) $(GTEST_LDLIBS) tests/gtestmusig2.c -L./build -lmusig2 -o gtest_run/gtest
+
+ctest: lib_musig2
+	rm -rf ctest_run
+	mkdir ctest_run
+	$(CC) $(CFLAGS) $(LDLIBS) musig2test.c -L./build -lmusig2 -o ctest_run/ctest
 
 clean:
-	rm -rf *.o build test_musig2
+	rm -rf *.o build gtest_run ctest_run

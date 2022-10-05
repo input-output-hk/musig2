@@ -274,7 +274,7 @@ int musig2_aggregate_R(musig2_context_sig *mcs, secp256k1_pubkey *batch_list) {
     return 1;
 }
 
-int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, unsigned char *parsig) {
+int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const unsigned char *msg, int msg_len) {
 
     unsigned char ser_pk[XONLY_BYTES];  // Serialized public key of signer
     secp256k1_xonly_pubkey xonly_pk;    // x_only public key of signer
@@ -322,7 +322,7 @@ int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, 
             return 0;
         }
         param.par_R = -1;
-        if (!musig2_set_parsig(mcs, &param, parsig)){
+        if (!musig2_set_parsig(mcs, &param, mps->sig)){
             printf("Failed to generate partial signature. \n");
             return 0;
         }
@@ -333,18 +333,20 @@ int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, 
             printf("Failed to negate c. \n");
             return 0;
         }
-        if (!musig2_set_parsig(mcs, &param, parsig)){
+        if (!musig2_set_parsig(mcs, &param, mps->sig)){
             printf("Failed to generate partial signature. \n");
             return 0;
         }
     }
     /* If par_pk == par_R, compute parsig */
     else{
-        if (!musig2_set_parsig(mcs, &param, parsig)){
+        if (!musig2_set_parsig(mcs, &param, mps->sig)){
             printf("Failed to generate partial signature. \n");
             return 0;
         }
     }
+
+    memcpy(mps->R.data, mcs->mc->aggr_R.data, PK_BYTES);
 
     /* Update the state after each signature */
     mcs->mc->state++;

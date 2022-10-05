@@ -118,17 +118,17 @@ int musig2_aggregate_R(musig2_context_sig *mcs, secp256k1_pubkey *batch_list);
 
 /** Function    : musig2_sign
  *  Purpose     : Starts the signature process for signer and calls `musig2_sign_partial`.
- *                Returns 1 if partial signature is created successfully, 0 otherwise.
+ *                Returns 1 if partial signature is created successfully, -1 if the corresponding commitment is NULL, 0 otherwise.
  *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
  *              : IN        : msg: The message to be signed.
  *                          : msg_len: The length of the message.
- * Returns      : 1/0.
+ * Returns      : 1/-1/0.
  * */
-int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, unsigned char *parsig);
+int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const unsigned char *msg, int msg_len);
 
 /** Function    : musig2_aggregate_partial_sig
  *  Purpose     : Aggregates the given list of partial signatures. Sets the musig2 signature.
- *                Returns 1 if musig2 signature is created successfully, 0 otherwise.
+ *                Returns 1 if musig2 signature is created successfully, -1 if not all the `R` values are equal, 0 otherwise.
  *  Parameters  : IN/OUT    : mca: A musig2_context object.
  *                          : signature: A musig2 signature.
  *              : IN        : ctx: secp256k1_context object.
@@ -136,7 +136,7 @@ int musig2_sign(musig2_context_sig *mcs, const unsigned char *msg, int msg_len, 
  *                          : pk_list: The list of public keys.
  *                          : signature: The aggregated signature.
  *                          : nr_signers: The number of signers.
- * Returns      : 1/0.
+ * Returns      : 1/-1/0.
  * */
 int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, musig2_partial_signatures *mps, secp256k1_pubkey *pk_list, unsigned char *signature, int nr_signers);
 
