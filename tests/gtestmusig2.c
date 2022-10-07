@@ -295,6 +295,66 @@ TEST (musig2, invalid_signer_key) {
 
 }
 
+TEST (musig2, invalid_single_signature) {
+    int err;
+    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+    secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
+    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
+    musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
+    musig2_partial_signatures mps[NR_SIGNERS];
+    musig2_context mca;
+    unsigned char signature[SCH_SIG_BYTES];
+
+    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    ASSERT_EQ(err, 1);
+
+    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    ASSERT_EQ(err, 1);
+
+    err = sign_partial(mcs_list, mps);
+    ASSERT_EQ(err, 1);
+
+    // Flip a bit of a single signature.
+    mps[0].sig[0] ^= 1;
+
+    err = musig2_aggregate_partial_sig(ctx, &mca, mps, pk_list, signature, NR_SIGNERS);
+    ASSERT_EQ(err, 1);
+
+    // Verification should fail since one of the single signatures is incorrect.
+    err = musig2_ver_musig(ctx, signature, mca.aggr_pk, MSG_1, MSG_1_LEN);
+    ASSERT_EQ(err, 0);
+
+}
+
+TEST (musig2, aggregate_invalid_public_key) {
+    int err;
+    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+    secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
+    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
+    musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
+    musig2_partial_signatures mps[NR_SIGNERS];
+    musig2_context mca;
+    unsigned char signature[SCH_SIG_BYTES];
+
+    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    ASSERT_EQ(err, 1);
+
+    pk_list[0].data[0] ^= 1;
+    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    ASSERT_EQ(err, 1);
+
+    err = sign_partial(mcs_list, mps);
+    ASSERT_EQ(err, 1);
+
+    err = musig2_aggregate_partial_sig(ctx, &mca, mps, pk_list, signature, NR_SIGNERS);
+    ASSERT_EQ(err, 1);
+
+    // Verification should fail since one of the single signatures is incorrect.
+    err = musig2_ver_musig(ctx, signature, mca.aggr_pk, MSG_1, MSG_1_LEN);
+    ASSERT_EQ(err, 0);
+
+}
+
 
 
 }
