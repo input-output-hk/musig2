@@ -69,7 +69,7 @@ typedef struct{
     unsigned char a[SCALAR_BYTES];
     unsigned char b[SCALAR_BYTES];
     unsigned char c[SCALAR_BYTES];
-    unsigned char *b_LIST[V];
+    unsigned char b_LIST[V][SCALAR_BYTES];
     unsigned char *msg;
     unsigned char ser_aggr_pk[XONLY_BYTES];
     unsigned char ser_aggr_R[XONLY_BYTES];
