@@ -191,7 +191,7 @@ static int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param, unsig
 int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages) {
 
     mcs->mc = malloc(sizeof (musig2_context));
-    mcs->mc->ctx = secp256k1_context_clone(ctx);
+    mcs->mc->ctx = ctx;
     mcs->mc->state = 0;
     mcs->nr_messages = nr_messages;
 
@@ -365,7 +365,7 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, mu
     secp256k1_xonly_pubkey xonly_pk; // x_only pk
     secp256k1_xonly_pubkey xonly_R; // x_only R
 
-    mca->ctx = secp256k1_context_clone(ctx);
+    mca->ctx = ctx;
     for (i = 0; i < nr_signers; i++) {
         if (mps[i].sig[0] == '\0'){
             return -2 ;
