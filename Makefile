@@ -32,7 +32,7 @@ gtest: lib_musig2
 ctest: lib_musig2
 	rm -rf ctest_run
 	mkdir ctest_run
-	$(CC) $(CFLAGS) $(LDLIBS) musig2test.c -L./build -lmusig2 -o ctest_run/ctest
+	$(CC) $(CFLAGS) $(LDLIBS) examplemusig2.c -L./build -lmusig2 -o ctest_run/ctest
 
 clean:
 	rm -rf *.o build gtest_run ctest_run

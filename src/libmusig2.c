@@ -366,6 +366,11 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, mu
     secp256k1_xonly_pubkey xonly_R; // x_only R
 
     mca->ctx = secp256k1_context_clone(ctx);
+    for (i = 0; i < nr_signers; i++) {
+        if (mps[i].sig[0] == '\0'){
+            return -2 ;
+        }
+    }
 
     /* Aggregate the given list of public keys */
     musig2_aggregate_pubkey(mca, pk_list, nr_signers);
