@@ -28,7 +28,7 @@ int main(void) {
     printf("--------------------------------------------------------------------------- \n");
     printf("* Number of signers\t\t: %d\n", NR_SIGNERS);
     printf("* Number of nonces\t\t: %d \n", V);
-    printf("* Number of messages\t: %d \n", NR_MESSAGES);
+    printf("* Number of messages\t\t: %d \n", NR_MESSAGES);
     printf("--------------------------------------------------------------------------- \n");
 
     /**** musig2test parameters ****/
@@ -68,7 +68,7 @@ int main(void) {
     /**** Aggregate the public keys and batch commitments for each signer ****/
     int cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_pubkey(mcs_list[i].mc, pk_list, NR_SIGNERS);
+        cnt += musig2_aggregate_pubkey(&mcs_list[i].mc, pk_list, NR_SIGNERS);
     printf("* %d signers aggregated public key.\n", cnt);
 
     cnt = 0;
@@ -90,6 +90,7 @@ int main(void) {
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
+            musig2_context_sig_destroy(&mcs_list[k]);
             return -1;
         }
     }
@@ -109,14 +110,19 @@ int main(void) {
     }
     else {
         printf("* Failed to aggregate signatures.\n");
+        for (int k = 0; k < NR_SIGNERS; k++) {
+            musig2_context_sig_destroy(&mcs_list[k]);
+        }
         return -1;
     }
 
 
     /**** Verification ****/
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_ver_musig(ctx, signature1, mca1.aggr_pk, MSG_1, MSG_1_LEN))
+    if (musig2_ver_musig(ctx, signature1, mca1.aggr_pk, MSG_1, MSG_1_LEN)) {
         printf("\n* Musig2 is VALID!\n");
+        musig2_context_destroy(&mca1);
+    }
     else
         printf("\n* Failed to verify Musig2!\n");
     printf("--------------------------------------------------------------------------- \n\n");
@@ -125,12 +131,7 @@ int main(void) {
 
     printf("**** STATE 2 ************************************************************** \n");
 
-    /**** Aggregate the public keys and batch commitments for each signer ****/
-    cnt = 0;
-    for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_pubkey(mcs_list[i].mc, pk_list, NR_SIGNERS);
-    printf("* %d signers aggregated public key.\n", cnt);
-
+    /**** Aggregate batch commitments for each signer ****/
     cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
         cnt += musig2_aggregate_R(&mcs_list[i], batch_list);
@@ -147,9 +148,13 @@ int main(void) {
         if (musig2_sign(&mcs_list[i], &mps2[i], MSG_2, MSG_2_LEN)){
             printf(" S%d: ", i + 1);
             print_hex(mps2[i].sig, SCALAR_BYTES);
+            musig2_context_sig_destroy(&mcs_list[i]);
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
+            for (int k = i; k < NR_SIGNERS; k++) {
+                musig2_context_sig_destroy(&mcs_list[k]);
+            }
             return -1;
         }
     }
@@ -175,8 +180,10 @@ int main(void) {
 
     /**** Verification ****/
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_ver_musig(ctx, signature2, mca2.aggr_pk, MSG_2, MSG_2_LEN))
+    if (musig2_ver_musig(ctx, signature2, mca2.aggr_pk, MSG_2, MSG_2_LEN)) {
         printf("\n* Musig2 is VALID!\n");
+        musig2_context_destroy(&mca2);
+    }
     else
         printf("\n* Failed to verify Musig2!\n");
     printf("--------------------------------------------------------------------------- \n");

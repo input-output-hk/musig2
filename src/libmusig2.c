@@ -10,7 +10,7 @@ static int musig2_key_gen(musig2_context_sig *mcs) {
         }
         /* Try to create a keypair with a valid context, it should only fail if
          * the secret key is zero or out of range. */
-        if (secp256k1_keypair_create(mcs->mc->ctx, &mcs->keypair, x))
+        if (secp256k1_keypair_create(mcs->mc.ctx, &mcs->keypair, x))
             return 1;
     }
 }
@@ -24,17 +24,17 @@ static int musig2_batch_commitment(musig2_context_sig *mcs) {
     i = 0;
     /* Create nr_msgs * V batch commitments for signer */
     for (k = 0; k < mcs->nr_messages; k++) {
-        for (j = 0; j < V; j++) {
+        for (j = 0; j < V; j++, i++) {
             mcs->comm_list[i] = malloc(sizeof(secp256k1_keypair));
             while (1) {
                 if (!fill_random(x, SCALAR_BYTES)) {
                     printf("Failed to generate randomness\n");
+                    musig2_context_sig_destroy(mcs);
                     return 0;
                 }
-                if (secp256k1_keypair_create(mcs->mc->ctx, mcs->comm_list[i], x))
+                if (secp256k1_keypair_create(mcs->mc.ctx, mcs->comm_list[i], x))
                     break;
             }
-            i++;
         }
     }
     return 1;
@@ -63,8 +63,8 @@ static void musig2_calc_b(musig2_context_sig *mcs, musig2_param *param) {
 
     /* Get x_only R_j, serialize and concatenate. */
     for (j = 0; j < V; j++) {
-        assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc->ctx, &xonly_R, NULL, &mcs->aggr_R_list[j]));
-        secp256k1_xonly_pubkey_serialize(mcs->mc->ctx, ser_R, &xonly_R);
+        assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &xonly_R, NULL, &mcs->aggr_R_list[j]));
+        secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_R, &xonly_R);
         memcpy(&temp_concat[XONLY_BYTES * (j + 1)], ser_R, XONLY_BYTES);
     }
 
@@ -72,7 +72,7 @@ static void musig2_calc_b(musig2_context_sig *mcs, musig2_param *param) {
     memcpy(&temp_concat[(1 + V) * XONLY_BYTES], param->msg, param->msg_len);
 
     /* Compute b */
-    assert(secp256k1_tagged_sha256(mcs->mc->ctx, param->b, tag, sizeof (tag), temp_concat, sizeof(temp_concat)));
+    assert(secp256k1_tagged_sha256(mcs->mc.ctx, param->b, tag, sizeof (tag), temp_concat, sizeof(temp_concat)));
 
 }
 
@@ -90,24 +90,24 @@ static int musig2_calc_R(musig2_context_sig *mcs, musig2_param *param) {
         if (j == 0 && param->par_R == 0) {
         }
         else if (j == 0 && param->par_R == 1) {
-            assert(secp256k1_ec_pubkey_negate(mcs->mc->ctx, Rb_list[j]));
+            assert(secp256k1_ec_pubkey_negate(mcs->mc.ctx, Rb_list[j]));
         }
         else {
             if (j == 1){
                 /* If j = 1 => b_LIST[j] = b .*/
                 memcpy(param->b_LIST[j], param->b, SCALAR_BYTES);
-                if (!secp256k1_ec_pubkey_tweak_mul(mcs->mc->ctx, Rb_list[j], param->b_LIST[j]))
+                if (!secp256k1_ec_pubkey_tweak_mul(mcs->mc.ctx, Rb_list[j], param->b_LIST[j]))
                     return 0;
             }
             else{
                 memcpy(param->b_LIST[j], param->b_LIST[j-1], SCALAR_BYTES);
                 /* Compute b * b^(j-1) */
-                if (!secp256k1_ec_seckey_tweak_mul(mcs->mc->ctx, param->b_LIST[j], param->b))
+                if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, param->b_LIST[j], param->b))
                     return 0;
 
-                assert(secp256k1_ec_seckey_negate(mcs->mc->ctx, param->b_LIST[j]));
+                assert(secp256k1_ec_seckey_negate(mcs->mc.ctx, param->b_LIST[j]));
 
-                if (!secp256k1_ec_pubkey_tweak_mul(mcs->mc->ctx, Rb_list[j], param->b_LIST[j]))
+                if (!secp256k1_ec_pubkey_tweak_mul(mcs->mc.ctx, Rb_list[j], param->b_LIST[j]))
                     return 0;
             }
         }
@@ -117,11 +117,11 @@ static int musig2_calc_R(musig2_context_sig *mcs, musig2_param *param) {
      * Get x_only R, store in xonly_temp
      * Get parity R to check whether b is needed to be negated.
      * Serialize x_only R into ser_xonly_R */
-    if (!secp256k1_ec_pubkey_combine(mcs->mc->ctx, &mcs->mc->aggr_R, (const secp256k1_pubkey *const *)Rb_list, V))
+    if (!secp256k1_ec_pubkey_combine(mcs->mc.ctx, &mcs->mc.aggr_R, (const secp256k1_pubkey *const *)Rb_list, V))
         return 0;
 
-    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc->ctx, &temp_xonly_R, &param->par_R, &mcs->mc->aggr_R));
-    assert(secp256k1_xonly_pubkey_serialize(mcs->mc->ctx, param->ser_aggr_R, &temp_xonly_R));
+    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &temp_xonly_R, &param->par_R, &mcs->mc.aggr_R));
+    assert(secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, param->ser_aggr_R, &temp_xonly_R));
 
     return 1;
 }
@@ -146,18 +146,18 @@ static int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param, unsig
     unsigned char sr_list[V][SCALAR_BYTES];
 
     /* Extract the secret key of the signer */
-    assert(secp256k1_keypair_sec(mcs->mc->ctx, x, &mcs->keypair));
+    assert(secp256k1_keypair_sec(mcs->mc.ctx, x, &mcs->keypair));
 
     /* Extract the nonces of the signer for current state and message */
-    int index = V * mcs->mc->state;
+    int index = V * mcs->state;
     for (j = 0; j < V; j++){
-        assert(secp256k1_keypair_sec(mcs->mc->ctx, sr_list[j], mcs->comm_list[index + j]));
-        mcs->comm_list[index + j] = NULL;
+        assert(secp256k1_keypair_sec(mcs->mc.ctx, sr_list[j], mcs->comm_list[index + j]));
+        free(mcs->comm_list[index + j]);
     }
 
     /* Compute (a * x * c) */
     memcpy(parsig, param->c, SCALAR_BYTES);
-    if (!secp256k1_ec_seckey_tweak_mul(mcs->mc->ctx, parsig, x) || !secp256k1_ec_seckey_tweak_mul(mcs->mc->ctx, parsig, param->a))
+    if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, parsig, x) || !secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, parsig, param->a))
         return 0;
 
     /* If j = 0 => b = -1. So, r_0 * b_LIST[0] = - sec_r_LIST[0].
@@ -166,7 +166,7 @@ static int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param, unsig
     for (j = 0; j < V; j++) {
         /* If the parity of R is -1 negate `b` (b=1) or equivalently negate sr_list[j] */
         if (j == 0 && param->par_R == -1) {
-            if(!secp256k1_ec_seckey_negate(mcs->mc->ctx, sr_list[j]))
+            if(!secp256k1_ec_seckey_negate(mcs->mc.ctx, sr_list[j]))
                 return 0;
 
             memcpy(sum_rb, sr_list[j], SCALAR_BYTES);
@@ -174,25 +174,39 @@ static int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param, unsig
         else if (j == 0) memcpy(sum_rb, sr_list[j], SCALAR_BYTES);
         else {
             memcpy(temp_rb, sr_list[j], SCALAR_BYTES);
-            if (!secp256k1_ec_seckey_tweak_mul(mcs->mc->ctx, temp_rb, param->b_LIST[j]) || !secp256k1_ec_seckey_tweak_add(mcs->mc->ctx, sum_rb, temp_rb))
+            if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, temp_rb, param->b_LIST[j]) || !secp256k1_ec_seckey_tweak_add(mcs->mc.ctx, sum_rb, temp_rb))
                 return 0;
         }
     }
 
     /* Finalize response */
-    if (!secp256k1_ec_seckey_tweak_add(mcs->mc->ctx, parsig, sum_rb))
+    if (!secp256k1_ec_seckey_tweak_add(mcs->mc.ctx, parsig, sum_rb))
         return 0;
 
     return 1;
 }
 
+/*** Destroy MuSig2 context ***/
+void musig2_context_destroy(musig2_context *mc) {
+    if (mc->L != NULL) {
+        free(mc->L);
+    }
+}
+
+/*** Destroy MuSig2 Sig context ***/
+void musig2_context_sig_destroy(musig2_context_sig *mcs) {
+    for (int l = mcs->state * V; l < mcs->nr_messages * V; l++) {
+        free(mcs->comm_list[l]);
+    }
+    free(mcs->comm_list);
+    musig2_context_destroy(&mcs->mc);
+}
 
 /**** Signer ****/
 int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages) {
 
-    mcs->mc = malloc(sizeof (musig2_context));
-    mcs->mc->ctx = ctx;
-    mcs->mc->state = 0;
+    mcs->mc.ctx = ctx;
+    mcs->state = 0;
     mcs->nr_messages = nr_messages;
 
     /* Generate a key pair for given signer */
@@ -210,7 +224,7 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n
 
     int i;
     unsigned char temp_a[SCALAR_BYTES];
-    unsigned char *ser_pk_list[nr_signers];
+    unsigned char ser_pk_list[nr_signers][XONLY_BYTES];
     secp256k1_pubkey tweakable_pk_list[nr_signers];
     const secp256k1_pubkey* pk_pointer_list[nr_signers];
     secp256k1_xonly_pubkey temp_xonly_pk;
@@ -221,8 +235,6 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n
 
     /* Multiply pk_i with a_i. Store in temp_pk_list[i]. */
     for (i = 0; i < nr_signers; i++) {
-        ser_pk_list[i] = malloc(XONLY_BYTES);
-
         /* Copy the current public key into temp_pk_list */
         memcpy(tweakable_pk_list[i].data, pk_list[i].data, PK_BYTES);
         pk_pointer_list[i] = &tweakable_pk_list[i];
@@ -240,6 +252,7 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n
         /* Compute `pk_i * a_i` */
         if (!secp256k1_ec_pubkey_tweak_mul(mc->ctx, (secp256k1_pubkey*)pk_pointer_list[i], temp_a)){
             printf("Failed to generate partial multiplication. \n");
+            musig2_context_destroy(mc);
             return 0;
         }
     }
@@ -247,6 +260,7 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n
     /* Aggregate the public keys */
     if (!secp256k1_ec_pubkey_combine(mc->ctx, &mc->aggr_pk, pk_pointer_list, nr_signers)){
         printf("Failed to aggregate public keys. \n");
+        musig2_context_destroy(mc);
         return 0;
     }
 
@@ -256,17 +270,16 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n
 int musig2_aggregate_R(musig2_context_sig *mcs, secp256k1_pubkey *batch_list) {
 
     int i, j;
-    int ind = mcs->mc->state * (V * mcs->mc->nr_signers);
-    secp256k1_pubkey* temp_R_list[mcs->mc->nr_signers];
+    int ind = mcs->state * (V * mcs->mc.nr_signers);
+    secp256k1_pubkey* temp_R_list[mcs->mc.nr_signers];
 
     /* Aggregate the batch commitments for current message */
     for (j = 0; j < V; j++) {
         i = 0;
-        while (i < mcs->mc->nr_signers) {
-            temp_R_list[i] = malloc(sizeof (secp256k1_pubkey));
-            memcpy(temp_R_list[i++], batch_list[ind++].data, PK_BYTES);
+        while (i < mcs->mc.nr_signers) {
+            temp_R_list[i++] = &batch_list[ind++];
         }
-        if (!secp256k1_ec_pubkey_combine(mcs->mc->ctx, &mcs->aggr_R_list[j], (const secp256k1_pubkey *const *) temp_R_list, mcs->mc->nr_signers)){
+        if (!secp256k1_ec_pubkey_combine(mcs->mc.ctx, &mcs->aggr_R_list[j], (const secp256k1_pubkey *const *) temp_R_list, mcs->mc.nr_signers)){
             printf("Failed to aggregate commitments. \n");
             return 0;
         }
@@ -282,24 +295,23 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
     musig2_param param;  // Parameters used to generate partial signature
 
     int j;
-    int index = V * mcs->mc->state;
+    int index = V * mcs->state;
     for (j = 0; j < V; j++)
         if (mcs->comm_list[index + j] == NULL)
             return -1;
 
     /* Set the message and its length to param */
-    param.msg = malloc(msg_len);
-    memcpy(param.msg, msg, msg_len);
+    param.msg = msg;
     param.msg_len = msg_len;
 
     /* Get the exponent `a` of signer */
-    assert(secp256k1_keypair_xonly_pub(mcs->mc->ctx, &xonly_pk, NULL, &mcs->keypair));
-    secp256k1_xonly_pubkey_serialize(mcs->mc->ctx, ser_pk, &xonly_pk);
-    musig2_key_agg_coef(mcs->mc, ser_pk, param.a, mcs->mc->L);
+    assert(secp256k1_keypair_xonly_pub(mcs->mc.ctx, &xonly_pk, NULL, &mcs->keypair));
+    secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_pk, &xonly_pk);
+    musig2_key_agg_coef(&mcs->mc, ser_pk, param.a, mcs->mc.L);
 
     /* Get x_only version of aggregated public key and its parity */
-    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc->ctx, &xonly_aggr_pk, &param.par_pk, &mcs->mc->aggr_pk));
-    secp256k1_xonly_pubkey_serialize(mcs->mc->ctx, param.ser_aggr_pk, &xonly_aggr_pk);
+    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &xonly_aggr_pk, &param.par_pk, &mcs->mc.aggr_pk));
+    secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, param.ser_aggr_pk, &xonly_aggr_pk);
 
 
     /* Compute `b`, `R`, and `c` */
@@ -309,11 +321,11 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
         printf("Failed to calculate R. \n");
         return 0;
     }
-    musig2_calc_c(mcs->mc, &param);
+    musig2_calc_c(&mcs->mc, &param);
 
     /* If par_R is 1, then negate b, call Calc_R again, and compute parsig */
     if (param.par_R == 1 && param.par_pk == 0){
-        if (!secp256k1_ec_seckey_negate(mcs->mc->ctx, param.b)){
+        if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, param.b)){
             printf("Failed to negate b. \n");
             return 0;
         }
@@ -329,7 +341,7 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
     }
     /* If par_pk is 1, negate c and compute parsig */
     else if (param.par_R == 0 && param.par_pk == 1){
-        if (!secp256k1_ec_seckey_negate(mcs->mc->ctx, param.c)){
+        if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, param.c)){
             printf("Failed to negate c. \n");
             return 0;
         }
@@ -349,7 +361,7 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
     memcpy(mps->R.data, mcs->mc->aggr_R.data, PK_BYTES);
 
     /* Update the state after each signature */
-    mcs->mc->state++;
+    mcs->state++;
 
     return 1;
 }
@@ -378,6 +390,7 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, mu
     /* Check whether all aggregated R is same */
     for (i = 1; i < nr_signers; i++) {
         if (secp256k1_ec_pubkey_cmp(ctx, &mps[i].R, &mps[i - 1].R) != 0){
+            free(mca->L);
             return -1 ;
         }
     }
@@ -399,6 +412,7 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, mu
     for (i = 1; i < nr_signers; i++) {
         if (!secp256k1_ec_seckey_tweak_add(mca->ctx, aggr_sig, mps[i].sig)){
             printf("Failed to aggregate signatures. \n");
+            free(mca->L);
             return 0;
         }
     }

@@ -1,3 +1,4 @@
 libmusig2.o
 musig2test
 musig2test.dSYM/
+valgrind-macos/

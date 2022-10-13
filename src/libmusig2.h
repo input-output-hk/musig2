@@ -9,7 +9,7 @@
 #include "random.h"
 
 
-
+// todo: use the secp library constants
 #define V                   2          // Number of nonce values
 #define SCALAR_BYTES       32          // SCALAR BYTES
 #define XONLY_BYTES        32          // XONLY PUBLIC KEY BYTES
@@ -32,7 +32,6 @@ typedef struct{
     secp256k1_pubkey aggr_pk;
     secp256k1_pubkey aggr_R;
     unsigned char *L;
-    int state;
     int nr_signers;
 }musig2_context;
 
@@ -45,11 +44,12 @@ typedef struct{
  *              : nr_messages: The number of messages.
  * */
 typedef struct {
-    musig2_context *mc;
+    musig2_context mc;
     secp256k1_keypair **comm_list;
     secp256k1_keypair keypair;
     secp256k1_pubkey aggr_R_list[V];
     int nr_messages;
+    int state;
 }musig2_context_sig;
 
 /** Struct      : musig2_param
@@ -70,7 +70,7 @@ typedef struct{
     unsigned char b[SCALAR_BYTES];
     unsigned char c[SCALAR_BYTES];
     unsigned char b_LIST[V][SCALAR_BYTES];
-    unsigned char *msg;
+    const unsigned char *msg;
     unsigned char ser_aggr_pk[XONLY_BYTES];
     unsigned char ser_aggr_R[XONLY_BYTES];
     int par_R;
@@ -88,6 +88,11 @@ typedef struct{
     secp256k1_pubkey R;
 }musig2_partial_signatures;
 
+/*** Destroy MuSig2 context ***/
+void musig2_context_destroy(musig2_context *mc);
+
+/*** Destroy MuSig2 context ***/
+void musig2_context_sig_destroy(musig2_context_sig *mcs);
 
 /** Function    : musig2_init_signer
  *  Purpose     : Initializes a musig2 signer. Generates the keypair and creates a list of batch commitments for  signer.
