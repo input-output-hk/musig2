@@ -40,26 +40,26 @@ static int musig2_batch_commitment(musig2_context_sig *mcs) {
     return 1;
 }
 
-static void musig2_key_agg_coef(musig2_context *mc, unsigned char *ser_pk, unsigned char *a, unsigned char *L) {
+static void musig2_key_agg_coef(musig2_context *mc, unsigned char *ser_pk, unsigned char *a) {
 
     unsigned char tag[13] = "BIP0340/nonce";    // Tag of hash to generate the exponents
     unsigned char temp_concat[(mc->nr_signers + 1) * XONLY_BYTES];    // Temp to store the concatenation of public keys
 
-    memcpy(temp_concat, L, mc->nr_signers * XONLY_BYTES );      // Copy L into temp_concat
+    memcpy(temp_concat, mc->L, mc->nr_signers * XONLY_BYTES );      // Copy L into temp_concat
     memcpy(&temp_concat[mc->nr_signers * XONLY_BYTES], ser_pk, XONLY_BYTES );  /* Copy given pk besides L */
     assert(secp256k1_tagged_sha256(mc->ctx, a, tag, sizeof (tag), temp_concat, sizeof (temp_concat)));
 }
 
-static void musig2_calc_b(musig2_context_sig *mcs, musig2_param *param) {
+static void musig2_calc_b(musig2_context_sig *mcs, const unsigned char *ser_aggr_pk, unsigned char *b, const unsigned char *msg, int msg_len) {
 
     int j;
     unsigned char tag[13] = "BIP0340/nonce";    // Tag for the hash to compute b
     unsigned char ser_R[XONLY_BYTES];
-    unsigned char temp_concat[(1 + V) * XONLY_BYTES + param->msg_len]; // Temp value to store the concatenation of aggr_pk, aggr_R_list and the message.
+    unsigned char temp_concat[(1 + V) * XONLY_BYTES + msg_len]; // Temp value to store the concatenation of aggr_pk, aggr_R_list and the message.
     secp256k1_xonly_pubkey xonly_R;
 
     /* Copy ser_aggr_pk into temp_concat */
-    memcpy(temp_concat, param->ser_aggr_pk, XONLY_BYTES);
+    memcpy(temp_concat, ser_aggr_pk, XONLY_BYTES);
 
     /* Get x_only R_j, serialize and concatenate. */
     for (j = 0; j < V; j++) {
@@ -69,119 +69,109 @@ static void musig2_calc_b(musig2_context_sig *mcs, musig2_param *param) {
     }
 
     /* Concatenate msg to end */
-    memcpy(&temp_concat[(1 + V) * XONLY_BYTES], param->msg, param->msg_len);
+    memcpy(&temp_concat[(1 + V) * XONLY_BYTES], msg, msg_len);
 
     /* Compute b */
-    assert(secp256k1_tagged_sha256(mcs->mc.ctx, param->b, tag, sizeof (tag), temp_concat, sizeof(temp_concat)));
+    assert(secp256k1_tagged_sha256(mcs->mc.ctx, b, tag, sizeof (tag), temp_concat, sizeof(temp_concat)));
 
 }
 
-static int musig2_calc_R(musig2_context_sig *mcs, musig2_param *param) {
+static int musig2_calc_R(musig2_context_sig *mcs, unsigned char *b, unsigned char b_LIST[V][SCALAR_BYTES]) {
 
     int j;
+    unsigned char ser_aggr_pk[XONLY_BYTES];
     secp256k1_pubkey tweakable_Rb_list[V];
     secp256k1_pubkey *Rb_list[V];
-    secp256k1_xonly_pubkey temp_xonly_R;
+    secp256k1_xonly_pubkey xonly_temp;   // temp value to store xonly point
 
-    /* Compute b_LIST = { b^(j-1) } and Rb_LIST = { R_j * b^(j-1) } */
-    for (j = 0; j < V; j++) {
+    for (j = 0; j < V; j++)
         memcpy(tweakable_Rb_list[j].data, mcs->aggr_R_list[j].data, PK_BYTES);
+    /* Compute b_LIST = { b^(j-1) } and Rb_LIST = { R_j * b^(j-1) } */
+    // first element of b_LIST = 1;
+    b_LIST[0][31] = 1; // this should be one.
+    Rb_list[0] = &tweakable_Rb_list[0];
+    // todo: Here we should simply compute R, and handle sign changes later.
+    // todo: actually, we need to handle the sign change before computing the challenge
+    for (j = 1; j < V; j++) {
         Rb_list[j] = &tweakable_Rb_list[j];
-        if (j == 0 && param->par_R == 0) {
-        }
-        else if (j == 0 && param->par_R == 1) {
-            assert(secp256k1_ec_pubkey_negate(mcs->mc.ctx, Rb_list[j]));
-        }
-        else {
-            if (j == 1){
-                /* If j = 1 => b_LIST[j] = b .*/
-                memcpy(param->b_LIST[j], param->b, SCALAR_BYTES);
-                if (!secp256k1_ec_pubkey_tweak_mul(mcs->mc.ctx, Rb_list[j], param->b_LIST[j]))
-                    return 0;
-            }
-            else{
-                memcpy(param->b_LIST[j], param->b_LIST[j-1], SCALAR_BYTES);
-                /* Compute b * b^(j-1) */
-                if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, param->b_LIST[j], param->b))
-                    return 0;
+        memcpy(b_LIST[j], b_LIST[j-1], SCALAR_BYTES);
+        if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, b_LIST[j], b))
+            return 0;
 
-                assert(secp256k1_ec_seckey_negate(mcs->mc.ctx, param->b_LIST[j]));
-
-                if (!secp256k1_ec_pubkey_tweak_mul(mcs->mc.ctx, Rb_list[j], param->b_LIST[j]))
-                    return 0;
-            }
-        }
+        if (!secp256k1_ec_pubkey_tweak_mul(mcs->mc.ctx, Rb_list[j], b_LIST[j]))
+            return 0;
     }
 
-    /* R = SUM ({ R_j * b^(j-1) })
-     * Get x_only R, store in xonly_temp
-     * Get parity R to check whether b is needed to be negated.
-     * Serialize x_only R into ser_xonly_R */
+    /* R = SUM ({ R_j * b^(j-1) }) */
     if (!secp256k1_ec_pubkey_combine(mcs->mc.ctx, &mcs->mc.aggr_R, (const secp256k1_pubkey *const *)Rb_list, V))
         return 0;
 
-    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &temp_xonly_R, &param->par_R, &mcs->mc.aggr_R));
-    assert(secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, param->ser_aggr_R, &temp_xonly_R));
+    /* Get x_only version of aggregated public key and its parity */
+    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &xonly_temp, &mcs->mc.par_pk, &mcs->mc.aggr_pk));
+
+    /* Get x_only version of aggregated R and its parity */
+    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &xonly_temp, &mcs->mc.par_R, &mcs->mc.aggr_R));
+
+    if (mcs->mc.par_R == 1 && mcs->mc.par_pk == 0){
+        // we negate b_LIST
+        for (j = 0; j < V; j++) {
+            if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, b_LIST[j])) {
+                printf("Failed to negate b. \n");
+                return 0;
+            }
+        }
+        // we negate R
+        mcs->mc.par_R = 0;
+    }
 
     return 1;
 }
 
-static void musig2_calc_c(musig2_context *mc, musig2_param *param) {
-    unsigned char tag[17] = "BIP0340/challenge";        // Tag of the hash to compute challenge.
-
-    unsigned char temp_concat[XONLY_BYTES * 2 + param->msg_len];   // Temp to store ( ser_xonly_R || ser_xonly_X_ || msg_hash )
-
-    memcpy(temp_concat, param->ser_aggr_R, XONLY_BYTES);
-    memcpy(&temp_concat[XONLY_BYTES], param->ser_aggr_pk, XONLY_BYTES);
-    memcpy(&temp_concat[XONLY_BYTES * 2], param->msg, param->msg_len);
-
-    assert(secp256k1_tagged_sha256(mc->ctx, param->c, tag , sizeof (tag), temp_concat, sizeof (temp_concat)));
-}
-
-static int musig2_set_parsig(musig2_context_sig *mcs, musig2_param *param, unsigned char *parsig) {
+static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned char *c, unsigned char b_LIST[V][SCALAR_BYTES], unsigned char *parsig) {
     int j;
     unsigned char temp_rb[SCALAR_BYTES];
-    unsigned char sum_rb[SCALAR_BYTES];
     unsigned char x[SCALAR_BYTES];
     unsigned char sr_list[V][SCALAR_BYTES];
 
     /* Extract the secret key of the signer */
     assert(secp256k1_keypair_sec(mcs->mc.ctx, x, &mcs->keypair));
 
-    /* Extract the nonces of the signer for current state and message */
+    /* Extract the nonces of the signer for current state */
     int index = V * mcs->state;
     for (j = 0; j < V; j++){
         assert(secp256k1_keypair_sec(mcs->mc.ctx, sr_list[j], mcs->comm_list[index + j]));
         free(mcs->comm_list[index + j]);
+
+        /* Update the state everytime we free the memory of a nonce */
+        mcs->state++;
+    }
+
+    if (mcs->mc.par_R == 0 && mcs->mc.par_pk == 1){
+        if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, c)){
+            printf("Failed to negate c. \n");
+            return 0;
+        }
     }
 
     /* Compute (a * x * c) */
-    memcpy(parsig, param->c, SCALAR_BYTES);
-    if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, parsig, x) || !secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, parsig, param->a))
+    memcpy(parsig, c, SCALAR_BYTES);
+    if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, parsig, x) || !secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, parsig, a))
         return 0;
 
-    /* If j = 0 => b = -1. So, r_0 * b_LIST[0] = - sec_r_LIST[0].
-     * If j = 0 => b = 1.
-     * Else, Copy r_j to temp_rb, compute r_j * b_LIST[j], and add temp_rb to sum_rb. */
+    /* Finalise the computation of a * x * c + \sum_{i=0}^V r_i * b_i */
     for (j = 0; j < V; j++) {
-        /* If the parity of R is -1 negate `b` (b=1) or equivalently negate sr_list[j] */
-        if (j == 0 && param->par_R == -1) {
-            if(!secp256k1_ec_seckey_negate(mcs->mc.ctx, sr_list[j]))
-                return 0;
-
-            memcpy(sum_rb, sr_list[j], SCALAR_BYTES);
-        }
-        else if (j == 0) memcpy(sum_rb, sr_list[j], SCALAR_BYTES);
-        else {
-            memcpy(temp_rb, sr_list[j], SCALAR_BYTES);
-            if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, temp_rb, param->b_LIST[j]) || !secp256k1_ec_seckey_tweak_add(mcs->mc.ctx, sum_rb, temp_rb))
-                return 0;
-        }
+        memcpy(temp_rb, sr_list[j], SCALAR_BYTES);
+        if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, temp_rb, b_LIST[j]) || !secp256k1_ec_seckey_tweak_add(mcs->mc.ctx, parsig, temp_rb))
+            return 0;
     }
 
-    /* Finalize response */
-    if (!secp256k1_ec_seckey_tweak_add(mcs->mc.ctx, parsig, sum_rb))
-        return 0;
+    // The third condition, if both R and pk are odd, we negate the partial signature.
+    if (mcs->mc.par_R == 1 && mcs->mc.par_pk == 1){
+        if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, parsig)){
+            printf("Failed to negate partial signature. \n");
+            return 0;
+        }
+    }
 
     return 1;
 }
@@ -247,7 +237,7 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n
 
     for (i = 0; i < nr_signers; i++) {
         /* Get the exponent `a` of current public key */
-        musig2_key_agg_coef(mc, ser_pk_list[i], temp_a, mc->L);
+        musig2_key_agg_coef(mc, ser_pk_list[i], temp_a);
 
         /* Compute `pk_i * a_i` */
         if (!secp256k1_ec_pubkey_tweak_mul(mc->ctx, (secp256k1_pubkey*)pk_pointer_list[i], temp_a)){
@@ -289,79 +279,54 @@ int musig2_aggregate_R(musig2_context_sig *mcs, secp256k1_pubkey *batch_list) {
 
 int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const unsigned char *msg, int msg_len) {
 
+    unsigned char ser_aggr_pk[XONLY_BYTES];
+    unsigned char ser_aggr_R[XONLY_BYTES];
+    unsigned char challenge_tag[17] = "BIP0340/challenge";        // Tag of the hash to compute challenge.
+    unsigned char bytes_to_hash[XONLY_BYTES * 2 + msg_len];   // Temp to store ( ser_xonly_R || ser_xonly_X_ || msg_hash )
+    unsigned char a[SCALAR_BYTES];
+    unsigned char b[SCALAR_BYTES];
+    unsigned char c[SCALAR_BYTES];
+    unsigned char b_LIST[V][SCALAR_BYTES] = {0};
+
     unsigned char ser_pk[XONLY_BYTES];  // Serialized public key of signer
-    secp256k1_xonly_pubkey xonly_pk;    // x_only public key of signer
-    secp256k1_xonly_pubkey xonly_aggr_pk;   // x_only aggregated public key
-    musig2_param param;  // Parameters used to generate partial signature
+    secp256k1_xonly_pubkey xonly_temp;
 
     int j;
     int index = V * mcs->state;
     for (j = 0; j < V; j++)
-        if (mcs->comm_list[index + j] == NULL)
-            return -1;
+        if (mcs->comm_list[index + j] == NULL){
+        return -1;
+    }
 
-    /* Set the message and its length to param */
-    param.msg = msg;
-    param.msg_len = msg_len;
+    assert(secp256k1_keypair_xonly_pub(mcs->mc.ctx, &xonly_temp, NULL, &mcs->keypair));
+    secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_pk, &xonly_temp);
 
     /* Get the exponent `a` of signer */
-    assert(secp256k1_keypair_xonly_pub(mcs->mc.ctx, &xonly_pk, NULL, &mcs->keypair));
-    secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_pk, &xonly_pk);
-    musig2_key_agg_coef(&mcs->mc, ser_pk, param.a, mcs->mc.L);
+    musig2_key_agg_coef(&mcs->mc, ser_pk, a);
 
-    /* Get x_only version of aggregated public key and its parity */
-    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &xonly_aggr_pk, &param.par_pk, &mcs->mc.aggr_pk));
-    secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, param.ser_aggr_pk, &xonly_aggr_pk);
+    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &xonly_temp, NULL, &mcs->mc.aggr_pk));
+    secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_aggr_pk, &xonly_temp);
 
-
-    /* Compute `b`, `R`, and `c` */
-    param.par_R = 0;
-    musig2_calc_b(mcs, &param);
-    if (!musig2_calc_R(mcs, &param)){
+    musig2_calc_b(mcs, ser_aggr_pk, b, msg, msg_len);
+    /* Compute `R` */
+    if (!musig2_calc_R(mcs, b, b_LIST)){
         printf("Failed to calculate R. \n");
         return 0;
     }
-    musig2_calc_c(&mcs->mc, &param);
 
-    /* If par_R is 1, then negate b, call Calc_R again, and compute parsig */
-    if (param.par_R == 1 && param.par_pk == 0){
-        if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, param.b)){
-            printf("Failed to negate b. \n");
-            return 0;
-        }
-        if (!musig2_calc_R(mcs, &param)){
-            printf("Failed to calculate R. \n");
-            return 0;
-        }
-        param.par_R = -1;
-        if (!musig2_set_parsig(mcs, &param, mps->sig)){
-            printf("Failed to generate partial signature. \n");
-            return 0;
-        }
-    }
-    /* If par_pk is 1, negate c and compute parsig */
-    else if (param.par_R == 0 && param.par_pk == 1){
-        if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, param.c)){
-            printf("Failed to negate c. \n");
-            return 0;
-        }
-        if (!musig2_set_parsig(mcs, &param, mps->sig)){
-            printf("Failed to generate partial signature. \n");
-            return 0;
-        }
-    }
-    /* If par_pk == par_R, compute parsig */
-    else{
-        if (!musig2_set_parsig(mcs, &param, mps->sig)){
-            printf("Failed to generate partial signature. \n");
-            return 0;
-        }
-    }
+    assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &xonly_temp, NULL, &mcs->mc.aggr_R));
+    secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_aggr_R, &xonly_temp);
 
-    memcpy(mps->R.data, mcs->mc->aggr_R.data, PK_BYTES);
+    memcpy(bytes_to_hash, &ser_aggr_R, XONLY_BYTES);
+    memcpy(&bytes_to_hash[XONLY_BYTES], &ser_aggr_pk, XONLY_BYTES);
+    memcpy(&bytes_to_hash[XONLY_BYTES * 2], msg, msg_len);
 
-    /* Update the state after each signature */
-    mcs->state++;
+    assert(secp256k1_tagged_sha256(mcs->mc.ctx, c, challenge_tag , sizeof (challenge_tag), bytes_to_hash, sizeof (bytes_to_hash)));
+
+    if (!musig2_set_parsig(mcs, a, c, b_LIST, parsig)) {
+        printf("Failed to generate partial signature. \n");
+        return 0;
+    }
 
     return 1;
 }

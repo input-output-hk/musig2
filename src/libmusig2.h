@@ -27,10 +27,13 @@
  *              : state: The state of musig2.
  *              : nr_signers: The number of signers.
  * */
+ // todo: this should contain the 'signing' data, so maybe combined with the params.
 typedef struct{
     secp256k1_context* ctx;
     secp256k1_pubkey aggr_pk;
     secp256k1_pubkey aggr_R;
+    int par_R;
+    int par_pk;
     unsigned char *L;
     int nr_signers;
 }musig2_context;
@@ -43,11 +46,12 @@ typedef struct{
  *              : aggr_R_list: The list of aggregated batch commitments.
  *              : nr_messages: The number of messages.
  * */
+ // todo: this should be the structure with data only needed when initialising the signer
 typedef struct {
     musig2_context mc;
     secp256k1_keypair **comm_list;
     secp256k1_keypair keypair;
-    secp256k1_pubkey aggr_R_list[V];
+    secp256k1_pubkey aggr_R_list[V]; // <- This should go to the other struct, and maybe store all the batch here
     int nr_messages;
     int state;
 }musig2_context_sig;
@@ -65,17 +69,16 @@ typedef struct {
  *              : par_pk: Parity of aggregated pk.
  *              : msg_len: The length of message.
  * */
+// todo: Do we need to store all these parameters? Or can this struct be simplified? maybe part of the signing
 typedef struct{
-    unsigned char a[SCALAR_BYTES];
-    unsigned char b[SCALAR_BYTES];
-    unsigned char c[SCALAR_BYTES];
-    unsigned char b_LIST[V][SCALAR_BYTES];
-    const unsigned char *msg;
-    unsigned char ser_aggr_pk[XONLY_BYTES];
-    unsigned char ser_aggr_R[XONLY_BYTES];
+    unsigned char a[SCALAR_BYTES]; // Computed during key aggregation, so maybe in first struct?
+    unsigned char b_LIST[V][SCALAR_BYTES]; // todo: Do we need to store it?
+    const unsigned char *msg; // Only in second round.
+    unsigned char ser_aggr_pk[XONLY_BYTES]; // Only in second round. And why not in the first struct?
+    unsigned char ser_aggr_R[XONLY_BYTES]; // Only in second round. And why not in the first struct?
     int par_R;
     int par_pk;
-    int msg_len;
+    int msg_len; // Only in second round.
 }musig2_param;
 
 /** Struct      : musig2_partial_signatures
