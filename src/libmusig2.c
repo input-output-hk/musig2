@@ -141,10 +141,10 @@ static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned
     for (j = 0; j < V; j++){
         assert(secp256k1_keypair_sec(mcs->mc.ctx, sr_list[j], mcs->comm_list[index + j]));
         free(mcs->comm_list[index + j]);
-
-        /* Update the state everytime we free the memory of a nonce */
-        mcs->state++;
     }
+
+    /* Update the state everytime we free the memory of a nonce */
+    mcs->state++;
 
     if (mcs->mc.par_R == 0 && mcs->mc.par_pk == 1){
         if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, c)){
@@ -332,71 +332,37 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
 }
 
 /**** Aggregator ****/
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, musig2_partial_signatures *mps, secp256k1_pubkey *pk_list, unsigned char *signature, int nr_signers) {
-
+int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatures *mps, unsigned char *signature, int nr_signatures) {
     int i;
-    int par_pk = 0;  // Parity of aggregated pk
-    int par_R = 0;  // Parity of R
-    unsigned char aggr_sig[SCALAR_BYTES]; // Aggregated signature
-    unsigned char ser_R[SCALAR_BYTES];   // Serialized R
-    secp256k1_xonly_pubkey xonly_pk; // x_only pk
     secp256k1_xonly_pubkey xonly_R; // x_only R
 
-    mca->ctx = ctx;
-    for (i = 0; i < nr_signers; i++) {
-        if (mps[i].sig[0] == '\0'){
-            return -2 ;
-        }
-    }
-
-    /* Aggregate the given list of public keys */
-    musig2_aggregate_pubkey(mca, pk_list, nr_signers);
-
     /* Check whether all aggregated R is same */
-    for (i = 1; i < nr_signers; i++) {
+    for (i = 1; i < nr_signatures; i++) {
         if (secp256k1_ec_pubkey_cmp(ctx, &mps[i].R, &mps[i - 1].R) != 0){
-            free(mca->L);
             return -1 ;
         }
     }
 
-    /* Set given R */
-    memcpy(&mca->aggr_R, mps[0].R.data, PK_BYTES);
-
-    /* Get x_only pk and its parity */
-    assert(secp256k1_xonly_pubkey_from_pubkey(mca->ctx, &xonly_pk, &par_pk, &mca->aggr_pk));
-
-    /* Get x_only R and its parity */
-    assert(secp256k1_xonly_pubkey_from_pubkey(mca->ctx, &xonly_R, &par_R, &mca->aggr_R));
+    /* Get x_only R */
+    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_R, NULL, &mps[0].R));
 
     /* Serialize R to store in signature */
-    secp256k1_xonly_pubkey_serialize(mca->ctx, ser_R, &xonly_R);
+    secp256k1_xonly_pubkey_serialize(ctx, signature, &xonly_R);
 
     /* Aggregate the partial signatures */
-    memcpy(aggr_sig, mps[0].sig, SCALAR_BYTES);
-    for (i = 1; i < nr_signers; i++) {
-        if (!secp256k1_ec_seckey_tweak_add(mca->ctx, aggr_sig, mps[i].sig)){
+    memcpy(signature + XONLY_BYTES, mps[0].sig, SCALAR_BYTES);
+    for (i = 1; i < nr_signatures; i++) {
+        if (!secp256k1_ec_seckey_tweak_add(ctx, signature + XONLY_BYTES, mps[i].sig)){
             printf("Failed to aggregate signatures. \n");
-            free(mca->L);
             return 0;
         }
     }
-
-    /* Negate the aggregated signature if both par_pk and par_R are 1 */
-    if (par_pk == 1 && par_R == 1)
-        if (!secp256k1_ec_seckey_negate(mca->ctx, aggr_sig)){
-            printf("Failed to negate signature. \n");
-            return 0;
-        }
-
-    /* Set the signature of type schnorr signature */
-    memcpy(signature, ser_R, SCALAR_BYTES);
-    memcpy(&signature[SCALAR_BYTES], aggr_sig, SCALAR_BYTES);
 
     return 1;
 }
 
 /**** Verifier ****/
+//todo: why don't we use the verifier context here?
 int musig2_ver_musig(secp256k1_context *ctx, const unsigned char *signature, secp256k1_pubkey aggr_pk, const unsigned char *msg, int msg_len) {
 
     secp256k1_xonly_pubkey xonly_pk;

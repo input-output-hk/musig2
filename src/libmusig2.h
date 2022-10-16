@@ -136,18 +136,16 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
 
 /** Function    : musig2_aggregate_partial_sig
  *  Purpose     : Aggregates the given list of partial signatures. Sets the musig2 signature.
- *                Returns 1 if musig2 signature is created successfully, -1 if not all the `R` values are equal,
- *                -2 if there are not enough signatures, 0 otherwise.
- *  Parameters  : IN/OUT    : mca: A musig2_context object.
- *                          : signature: A musig2 signature.
+ *                Returns 1 if musig2 signature is created successfully, -1 if not all the `R` values are equal
+ *                and 0 otherwise.
+ *  Parameters  : IN/OUT    : signature: A musig2 signature.
  *              : IN        : ctx: secp256k1_context object.
  *                          : mps: The list of partial signatures and R values of signers.
  *                          : pk_list: The list of public keys.
- *                          : signature: The aggregated signature.
- *                          : nr_signers: The number of signers.
- * Returns      : 1/-1/-2/0.
+ *                          : nr_signatures: The number of signatures.
+ * Returns      : 1/0.
  * */
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_context *mca, musig2_partial_signatures *mps, secp256k1_pubkey *pk_list, unsigned char *signature, int nr_signers);
+int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatures *mps, unsigned char *signature, int nr_signatures);
 
 /** Function    : musig2_ver_musig
  *  Purpose     : Verifies the musig2 signature with `secp256k1_schnorrsig_verify`.

@@ -99,10 +99,9 @@ int main(void) {
     /**** Aggregation ****/
     printf("\n* Aggregate signature: \n");
 
-    musig2_context mca1;
     unsigned char signature1[SCH_SIG_BYTES];
 
-    if (musig2_aggregate_partial_sig(ctx, &mca1, mps1, pk_list, signature1, NR_SIGNERS)){
+    if (musig2_aggregate_partial_sig(ctx, mps1, signature1, NR_SIGNERS)){
         printf(" S: ");
         print_hex(&signature1[XONLY_BYTES], SCALAR_BYTES);
         printf(" R: ");
@@ -118,16 +117,19 @@ int main(void) {
 
 
     /**** Verification ****/
+    // First the verifier needs to know the aggregated public key.
+    musig2_context verifier_context; // todo: this structure design obliges us to initialise a verifier context with unnecessary data (parities or aggr R).
+    musig2_aggregate_pubkey(&verifier_context, pk_list, NR_SIGNERS);
+
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_ver_musig(ctx, signature1, mca1.aggr_pk, MSG_1, MSG_1_LEN)) {
+    if (musig2_ver_musig(ctx, signature1, verifier_context.aggr_pk, MSG_1, MSG_1_LEN)) {
         printf("\n* Musig2 is VALID!\n");
-        musig2_context_destroy(&mca1);
     }
     else
         printf("\n* Failed to verify Musig2!\n");
     printf("--------------------------------------------------------------------------- \n\n");
 
-
+    musig2_context_destroy(&verifier_context);
 
     printf("**** STATE 2 ************************************************************** \n");
 
@@ -163,10 +165,9 @@ int main(void) {
     /**** Aggregation ****/
     printf("\n* Aggregate signature: \n");
 
-    musig2_context mca2;
     unsigned char signature2[SCH_SIG_BYTES];
 
-    if (musig2_aggregate_partial_sig(ctx, &mca2, mps2, pk_list, signature2, NR_SIGNERS)){
+    if (musig2_aggregate_partial_sig(ctx, mps2, signature2, NR_SIGNERS)){
         printf(" S: ");
         print_hex(&signature2[XONLY_BYTES], SCALAR_BYTES);
         printf(" R: ");
@@ -180,9 +181,8 @@ int main(void) {
 
     /**** Verification ****/
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_ver_musig(ctx, signature2, mca2.aggr_pk, MSG_2, MSG_2_LEN)) {
+    if (musig2_ver_musig(ctx, signature2, verifier_context.aggr_pk, MSG_2, MSG_2_LEN)) {
         printf("\n* Musig2 is VALID!\n");
-        musig2_context_destroy(&mca2);
     }
     else
         printf("\n* Failed to verify Musig2!\n");
