@@ -32,6 +32,7 @@ typedef struct{
     secp256k1_context* ctx;
     secp256k1_pubkey aggr_pk;
     secp256k1_pubkey aggr_R;
+    secp256k1_pubkey aggr_R_list[V];
     int par_R;
     int par_pk;
     unsigned char *L;
@@ -51,35 +52,9 @@ typedef struct {
     musig2_context mc;
     secp256k1_keypair **comm_list;
     secp256k1_keypair keypair;
-    secp256k1_pubkey aggr_R_list[V]; // <- This should go to the other struct, and maybe store all the batch here
     int nr_messages;
     int state;
 }musig2_context_sig;
-
-/** Struct      : musig2_param
- *  Purpose     : Stores the parameters to generate a partial signature.
- *  Parameters  : a: The exponent `a` of signer.
- *              : b: nonce, b = H_non(X, (R_1, ..., R_V), msg).
- *              : c: challenge, c = H_sig(X, R, msg).
- *              : b_list: The list of `b` values, b_LIST = { b^(j-1) }.
- *              : msg: The message to be signed.
- *              : ser_aggr_pk: Serialized aggregated public key.
- *              : ser_aggr_R: Serialized aggregated R.
- *              : par_R: Parity of R.
- *              : par_pk: Parity of aggregated pk.
- *              : msg_len: The length of message.
- * */
-// todo: Do we need to store all these parameters? Or can this struct be simplified? maybe part of the signing
-typedef struct{
-    unsigned char a[SCALAR_BYTES]; // Computed during key aggregation, so maybe in first struct?
-    unsigned char b_LIST[V][SCALAR_BYTES]; // todo: Do we need to store it?
-    const unsigned char *msg; // Only in second round.
-    unsigned char ser_aggr_pk[XONLY_BYTES]; // Only in second round. And why not in the first struct?
-    unsigned char ser_aggr_R[XONLY_BYTES]; // Only in second round. And why not in the first struct?
-    int par_R;
-    int par_pk;
-    int msg_len; // Only in second round.
-}musig2_param;
 
 /** Struct      : musig2_partial_signatures
  *  Purpose     : Stores the parameters to aggregate a partial signatures.
@@ -122,7 +97,7 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n
  *              : IN        : batch_list: The list of batch commitments.
  * Returns      : 1/0.
  * */
-int musig2_aggregate_R(musig2_context_sig *mcs, secp256k1_pubkey *batch_list);
+int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V]);
 
 /** Function    : musig2_sign
  *  Purpose     : Starts the signature process for signer and calls `musig2_sign_partial`.

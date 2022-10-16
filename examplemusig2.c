@@ -35,7 +35,7 @@ int main(void) {
     int i, j, k, l;
     int ind;
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
+    secp256k1_pubkey batch_list[NR_MESSAGES][NR_SIGNERS][V];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
 
 
@@ -54,8 +54,7 @@ int main(void) {
         l = 0; // the index of the signer's commitment list.
         for (k = 0; k < NR_MESSAGES; k++) {
             for (j = 0; j < V; j++, l++) {
-                ind = (NR_SIGNERS * V * k) + (j * NR_SIGNERS) + i; // the index for the list of collected batches.
-                assert(secp256k1_keypair_pub(ctx, &batch_list[ind], mcs_list[i].comm_list[l]));
+                assert(secp256k1_keypair_pub(ctx, &batch_list[k][i][j], mcs_list[i].comm_list[l]));
             }
         }
     }
@@ -65,6 +64,8 @@ int main(void) {
 
     printf("**** STATE 1 ************************************************************** \n");
 
+    // todo: idea: would  be good to 'prepare' signers for all the batch. This prepare
+    // function would compute the aggr pk, and all agr R values.
     /**** Aggregate the public keys and batch commitments for each signer ****/
     int cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
@@ -73,7 +74,7 @@ int main(void) {
 
     cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_R(&mcs_list[i], batch_list);
+        cnt += musig2_aggregate_R(&mcs_list[i].mc, batch_list[mcs_list[i].state]);
     printf("* %d signers aggregated commitment.\n", cnt);
 
 
@@ -119,12 +120,16 @@ int main(void) {
     /**** Verification ****/
     // First the verifier needs to know the aggregated public key.
     musig2_context verifier_context; // todo: this structure design obliges us to initialise a verifier context with unnecessary data (parities or aggr R).
+    secp256k1_xonly_pubkey xonly_aggr_pk;
+
     musig2_aggregate_pubkey(&verifier_context, pk_list, NR_SIGNERS);
 
+    /* Get the xonly public key */
+    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_aggr_pk, NULL, &verifier_context.aggr_pk));
+
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_ver_musig(ctx, signature1, verifier_context.aggr_pk, MSG_1, MSG_1_LEN)) {
+    if (secp256k1_schnorrsig_verify(ctx, signature1, MSG_1, MSG_1_LEN, &xonly_aggr_pk))
         printf("\n* Musig2 is VALID!\n");
-    }
     else
         printf("\n* Failed to verify Musig2!\n");
     printf("--------------------------------------------------------------------------- \n\n");
@@ -134,9 +139,11 @@ int main(void) {
     printf("**** STATE 2 ************************************************************** \n");
 
     /**** Aggregate batch commitments for each signer ****/
+    // todo: with the idea commented in STATE 1, the R computation (or initialisation) needs to be
+    // computed only once per message batch. This makes sense because it is not message dependent.
     cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_R(&mcs_list[i], batch_list);
+        cnt += musig2_aggregate_R(&mcs_list[i].mc, batch_list[mcs_list->state]);
     printf("* %d signers aggregated commitment.\n", cnt);
 
 
@@ -181,7 +188,7 @@ int main(void) {
 
     /**** Verification ****/
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_ver_musig(ctx, signature2, verifier_context.aggr_pk, MSG_2, MSG_2_LEN)) {
+    if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &xonly_aggr_pk)) {
         printf("\n* Musig2 is VALID!\n");
     }
     else
