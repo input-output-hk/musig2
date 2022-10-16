@@ -136,7 +136,7 @@ static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned
 
     /* Extract the nonces of the signer for current state */
     for (j = 0; j < V; j++){
-        assert(secp256k1_keypair_sec(mcs->mc.ctx, sr_list[j], mcs->comm_list[index + j]));
+        assert(secp256k1_keypair_sec(mcs->mc.ctx, sr_list[j], mcs->comm_list[V * mcs->state + j]));
         free(mcs->comm_list[V * mcs->state + j]);
     }
 
@@ -300,9 +300,9 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
     assert(secp256k1_xonly_pubkey_from_pubkey(mcs->mc.ctx, &xonly_temp, NULL, &mcs->mc.aggr_pk));
     secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_aggr_pk, &xonly_temp);
 
-    musig2_calc_b(mcs, ser_aggr_pk, b, msg, msg_len);
+    musig2_calc_b(&mcs->mc, ser_aggr_pk, b, msg, msg_len);
     /* Compute `R` */
-    if (!musig2_calc_R(mcs, b, b_LIST)){
+    if (!musig2_calc_R(&mcs->mc, b, b_LIST)){
         printf("Failed to calculate R. \n");
         return 0;
     }
@@ -314,7 +314,7 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
     memcpy(&bytes_to_hash[XONLY_BYTES], &ser_aggr_pk, XONLY_BYTES);
     memcpy(&bytes_to_hash[XONLY_BYTES * 2], msg, msg_len);
 
-    assert(secp256k1_tagged_sha256(mcs->mc.ctx, c, "BIP0340/challenge" , 17, bytes_to_hash, sizeof (bytes_to_hash)));
+    assert(secp256k1_tagged_sha256(mcs->mc.ctx, c, (const unsigned char *)"BIP0340/challenge" , 17, bytes_to_hash, sizeof (bytes_to_hash)));
 
     if (!musig2_set_parsig(mcs, a, c, b_LIST, parsig)) {
         printf("Failed to generate partial signature. \n");

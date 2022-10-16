@@ -33,7 +33,6 @@ int main(void) {
 
     /**** musig2test parameters ****/
     int i, j, k, l;
-    int ind;
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
     secp256k1_pubkey batch_list[NR_MESSAGES][NR_SIGNERS][V];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
