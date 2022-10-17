@@ -138,6 +138,7 @@ static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned
     for (j = 0; j < V; j++){
         assert(secp256k1_keypair_sec(mcs->mc.ctx, sr_list[j], mcs->comm_list[V * mcs->state + j]));
         free(mcs->comm_list[V * mcs->state + j]);
+        mcs->comm_list[V * mcs->state + j] = NULL;
     }
 
     /* Update the state everytime we free the memory of a nonce */

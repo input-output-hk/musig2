@@ -121,15 +121,3 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
  * Returns      : 1/0.
  * */
 int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
-
-/** Function    : musig2_ver_musig
- *  Purpose     : Verifies the musig2 signature with `secp256k1_schnorrsig_verify`.
- *                Returns 1 if musig2 signature is verified successfully, 0 otherwise.
- *  Parameters  : IN        : ctx: A secp256k1_context object including parameters of musig2 verifier.
- *                          : signature: A musig2 signature.
- *                          : aggr_pk: Aggregated public key.
- *                          : msg: The message to be signed.
- *                          : msg_len: The length of the message.
- * Returns      : 1/0.
- * */
-int musig2_ver_musig(secp256k1_context *ctx, const unsigned char *signature, secp256k1_pubkey aggr_pk, const unsigned char *msg, int msg_len );
