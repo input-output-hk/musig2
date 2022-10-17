@@ -36,21 +36,19 @@ jobs:
           sudo make install
           cd ../..
 
-      - name: Build tests
+      - name: Build gtests
         run: |
           mkdir build
-          mkdir test_musig2
+          mkdir gtest_run
+          mkdir ctest_run
           clang -c -g src/libmusig2.c -o build/musig2.o
           ar rcs build/libmusig2.a build/musig2.o
           ranlib build/libmusig2.a
           clang -x c++ -std=c++11 tests/gtestmusig2.c -g -o test_musig2/gtest -L./build -lmusig2 -lsecp256k1 -lstdc++ -lgtest -lgtest_main -pthread
-          clang tests/musig2test.c -g -o test_musig2/mtest -L./build -lmusig2 -lsecp256k1
+          clang examplemusig2.c -g -o ctest_run/ctest -L./build -lmusig2 -lsecp256k1
 
       - name: Run gtests
         run: test_musig2/gtest
 
-      - name: Run example test
-        run: test_musig2/mtest
-
       - name: Run Valgrind
-        run: valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes test_musig2/mtest
+        run: valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes ctest_run/ctest
