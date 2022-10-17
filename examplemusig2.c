@@ -80,7 +80,7 @@ int main(void) {
     /**** Signature ****/
     printf("\n* Partial Signatures: \n");
 
-    musig2_partial_signatures mps1[NR_SIGNERS];
+    musig2_partial_signature mps1[NR_SIGNERS];
 
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate the partial signatures */
@@ -149,7 +149,7 @@ int main(void) {
     /**** Signature ****/
     printf("\n* Partial Signatures: \n");
 
-    musig2_partial_signatures mps2[NR_SIGNERS];
+    musig2_partial_signature mps2[NR_SIGNERS];
 
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate the partial signatures */

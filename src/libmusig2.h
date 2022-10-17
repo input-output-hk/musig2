@@ -56,15 +56,15 @@ typedef struct {
     int state;
 }musig2_context_sig;
 
-/** Struct      : musig2_partial_signatures
- *  Purpose     : Stores the parameters to aggregate a partial signatures.
+/** Struct      : musig2_partial_signature
+ *  Purpose     : Stores the parameters to aggregate a partial signature.
  *  Parameters  : sig: The partial signature of a signer.
  *              : R: The nonce of a signer.
  * */
 typedef struct{
     unsigned char sig[PAR_SIG_BYTES];
     secp256k1_pubkey R;
-}musig2_partial_signatures;
+}musig2_partial_signature;
 
 /*** Destroy MuSig2 context ***/
 void musig2_context_destroy(musig2_context *mc);
@@ -107,7 +107,7 @@ int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V]);
  *                          : msg_len: The length of the message.
  * Returns      : 1/-1/0.
  * */
-int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const unsigned char *msg, int msg_len);
+int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const unsigned char *msg, int msg_len);
 
 /** Function    : musig2_aggregate_partial_sig
  *  Purpose     : Aggregates the given list of partial signatures. Sets the musig2 signature.
@@ -120,7 +120,7 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
  *                          : nr_signatures: The number of signatures.
  * Returns      : 1/0.
  * */
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatures *mps, unsigned char *signature, int nr_signatures);
+int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
 
 /** Function    : musig2_ver_musig
  *  Purpose     : Verifies the musig2 signature with `secp256k1_schnorrsig_verify`.

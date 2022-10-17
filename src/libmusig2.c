@@ -273,7 +273,7 @@ int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V]) {
     return 1;
 }
 
-int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const unsigned char *msg, int msg_len) {
+int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const unsigned char *msg, int msg_len) {
 
     unsigned char ser_aggr_pk[XONLY_BYTES];
     unsigned char ser_aggr_R[XONLY_BYTES];
@@ -316,7 +316,8 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
 
     assert(secp256k1_tagged_sha256(mcs->mc.ctx, c, (const unsigned char *)"BIP0340/challenge" , 17, bytes_to_hash, sizeof (bytes_to_hash)));
 
-    if (!musig2_set_parsig(mcs, a, c, b_LIST, parsig)) {
+    memcpy(mps->R.data, mcs->mc.aggr_R.data, PK_BYTES);
+    if (!musig2_set_parsig(mcs, a, c, b_LIST, mps->sig)) {
         printf("Failed to generate partial signature. \n");
         return 0;
     }
@@ -325,7 +326,7 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signatures *mps, const u
 }
 
 /**** Aggregator ****/
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatures *mps, unsigned char *signature, int nr_signatures) {
+int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures) {
     int i;
     secp256k1_xonly_pubkey xonly_R; // x_only R
 
