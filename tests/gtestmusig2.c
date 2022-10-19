@@ -174,11 +174,13 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
 
     int err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
-    secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
+    secp256k1_pubkey pk_list[NR_SIGNERS]; // Signers' public key list
+    secp256k1_pubkey tmp;
     secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[NR_SIGNERS];
     unsigned char signature[SCH_SIG_BYTES];
+    unsigned char tweak[SCALAR_BYTES] = {7};
 
     // Init signers, store public keys, generate batch commitments for `NR_SIGNERS`.
     err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
@@ -192,7 +194,9 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
     ASSERT_EQ(err, 1);
 
     // Modify one of the aggregated commitment of nonce of one of the signers.
-    assert(secp256k1_ec_pubkey_negate(ctx, &mps[0].R));
+
+    assert(secp256k1_xonly_pubkey_tweak_add(ctx, &tmp, &mps[0].R, tweak));
+    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &mps[0].R, NULL, &tmp));
 
     // Aggregation of partial signatures should fail since one of the signatures have incorrect aggregated commitment of nonce.
     err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
@@ -254,7 +258,6 @@ TEST (musig2, previous_state) {
         /* Generate the partial signatures */
         err = musig2_sign(&mcs_list[i], &mps2[i], MSG_2, MSG_2_LEN);
         ASSERT_EQ(err, 1);
-        memcpy(mps2[i].R.data, mcs_list[i].mc.aggr_R.data, PK_BYTES);
     }
 
     // Aggregation should fail.

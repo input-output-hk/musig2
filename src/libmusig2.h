@@ -59,7 +59,7 @@ typedef struct {
  * */
 typedef struct{
     unsigned char sig[PAR_SIG_BYTES];
-    const secp256k1_xonly_pubkey R;
+    secp256k1_xonly_pubkey R;
 }musig2_partial_signature;
 
 /*** Free memory allocated in MuSig2 context ***/
