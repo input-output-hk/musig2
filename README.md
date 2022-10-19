@@ -8,11 +8,18 @@ secp256k1, as well as usage examples including ECDSA and Schnorr signatures.
 This implementation requires to configure the libsecp256k1 with an additional flag 
 `--enable-module-schnorrsig` as stated in [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
 
-Test the implementation with musig2test.c
+Run the example with examplemusig2.c
 
 ```
-make
-./musig2test
+make ctest
+./ctest_run/ctest
+```
+
+Run the Google tests with
+
+```
+make gtest
+./gtest_run/gtest
 ```
 
 ## Verify MuSig2 with `secp256k1_schnorrsig_verify`
@@ -50,6 +57,8 @@ ___
 - [x] Prevent reuse of r values.
 - [x] Create musig2 context to simplify the API.
 - [ ] Tests (Valgrind).
+- [ ] Tests (GoogleTest).
+- [ ] Documentation.
 
 
 

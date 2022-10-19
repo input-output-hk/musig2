@@ -1,5 +1,5 @@
 #include "src/libmusig2.h"
-#include "config.h"
+#include "tests/config.h"
 
 
 
@@ -84,10 +84,9 @@ int main(void) {
 
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate the partial signatures */
-        if (musig2_sign(&mcs_list[i], MSG_1, MSG_1_LEN, mps1[i].sig)){
+        if (musig2_sign(&mcs_list[i], &mps1[i], MSG_1, MSG_1_LEN)){
             printf(" S%d: ", i + 1);
             print_hex(mps1[i].sig, SCALAR_BYTES);
-            memcpy(mps1[i].R.data, mcs_list[i].mc->aggr_R.data, PK_BYTES);
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
@@ -145,10 +144,9 @@ int main(void) {
 
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate the partial signatures */
-        if (musig2_sign(&mcs_list[i], MSG_2, MSG_2_LEN, mps2[i].sig)){
+        if (musig2_sign(&mcs_list[i], &mps2[i], MSG_2, MSG_2_LEN)){
             printf(" S%d: ", i + 1);
             print_hex(mps2[i].sig, SCALAR_BYTES);
-            memcpy(mps2[i].R.data, mcs_list[i].mc->aggr_R.data, PK_BYTES);
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
