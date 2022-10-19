@@ -22,6 +22,17 @@ make gtest
 ./gtest_run/gtest
 ```
 
+Running Valgrind in MacOs can be quite painful. We included a Dockerfile to run valgrind checks on MacOs with an arm 
+chip (e.g. M1).To test the code with valgrind, run the following: 
+```shell
+ docker build -t "valgrind:1.0" .
+ docker run -it -v $PWD:/tmp -w /tmp valgrind:1.0
+```
+
+and once you are interacting with the container, run
+```shell
+make valgrind
+```
 ## Verify MuSig2 with `secp256k1_schnorrsig_verify`
 The standard for 64-byte Schnorr signatures over secp256k1 uses x only encoding for _R_ and PK (aggregated public 
 key _X_ in our case) that results in 32-byte public keys and 64-byte signatures.
