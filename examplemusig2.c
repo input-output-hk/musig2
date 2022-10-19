@@ -90,7 +90,7 @@ int main(void) {
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
-            musig2_context_sig_destroy(&mcs_list[k]);
+            musig2_context_sig_free(&mcs_list[k]);
             return -1;
         }
     }
@@ -109,31 +109,23 @@ int main(void) {
     }
     else {
         printf("* Failed to aggregate signatures.\n");
-        for (int k = 0; k < NR_SIGNERS; k++) {
-            musig2_context_sig_destroy(&mcs_list[k]);
+        for (k = 0; k < NR_SIGNERS; k++) {
+            musig2_context_sig_free(&mcs_list[k]);
         }
         return -1;
     }
 
 
     /**** Verification ****/
-    // First the verifier needs to know the aggregated public key.
-    musig2_context verifier_context; // todo: this structure design obliges us to initialise a verifier context with unnecessary data (parities or aggr R).
-    secp256k1_xonly_pubkey xonly_aggr_pk;
+    secp256k1_xonly_pubkey aggr_pk;
 
-    musig2_aggregate_pubkey(&verifier_context, pk_list, NR_SIGNERS);
-
-    /* Get the xonly public key */
-    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_aggr_pk, NULL, &verifier_context.aggr_pk));
-
+    musig2_prepare_verifier(ctx, &aggr_pk, pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (secp256k1_schnorrsig_verify(ctx, signature1, MSG_1, MSG_1_LEN, &xonly_aggr_pk))
+    if (secp256k1_schnorrsig_verify(ctx, signature1, MSG_1, MSG_1_LEN, &aggr_pk))
         printf("\n* Musig2 is VALID!\n");
     else
         printf("\n* Failed to verify Musig2!\n");
     printf("--------------------------------------------------------------------------- \n\n");
-
-    musig2_context_destroy(&verifier_context);
 
     printf("**** STATE 2 ************************************************************** \n");
 
@@ -156,12 +148,12 @@ int main(void) {
         if (musig2_sign(&mcs_list[i], &mps2[i], MSG_2, MSG_2_LEN)){
             printf(" S%d: ", i + 1);
             print_hex(mps2[i].sig, SCALAR_BYTES);
-            musig2_context_sig_destroy(&mcs_list[i]);
+            musig2_context_sig_free(&mcs_list[i]);
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
             for (int k = i; k < NR_SIGNERS; k++) {
-                musig2_context_sig_destroy(&mcs_list[k]);
+                musig2_context_sig_free(&mcs_list[k]);
             }
             return -1;
         }
@@ -187,7 +179,7 @@ int main(void) {
 
     /**** Verification ****/
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &xonly_aggr_pk)) {
+    if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &aggr_pk)) {
         printf("\n* Musig2 is VALID!\n");
     }
     else

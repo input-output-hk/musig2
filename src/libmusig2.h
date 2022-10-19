@@ -27,16 +27,13 @@
  *              : state: The state of musig2.
  *              : nr_signers: The number of signers.
  * */
- // todo: this should contain the 'signing' data, so maybe combined with the params.
 typedef struct{
     secp256k1_context* ctx;
     secp256k1_pubkey aggr_pk;
-    secp256k1_pubkey aggr_R;
     secp256k1_pubkey aggr_R_list[V];
-    int par_R;
     int par_pk;
-    unsigned char *L;
     int nr_signers;
+    unsigned char *L;
 }musig2_context;
 
 /** Struct      : musig2_context_sig
@@ -47,7 +44,6 @@ typedef struct{
  *              : aggr_R_list: The list of aggregated batch commitments.
  *              : nr_messages: The number of messages.
  * */
- // todo: this should be the structure with data only needed when initialising the signer
 typedef struct {
     musig2_context mc;
     secp256k1_keypair **comm_list;
@@ -63,20 +59,22 @@ typedef struct {
  * */
 typedef struct{
     unsigned char sig[PAR_SIG_BYTES];
-    secp256k1_pubkey R;
+    const secp256k1_xonly_pubkey R;
 }musig2_partial_signature;
 
-/*** Destroy MuSig2 context ***/
-void musig2_context_destroy(musig2_context *mc);
+/*** Free memory allocated in MuSig2 context ***/
+void musig2_context_free(musig2_context *mc);
 
-/*** Destroy MuSig2 context ***/
-void musig2_context_sig_destroy(musig2_context_sig *mcs);
+/*** Free memory allocated in MuSig2 context ***/
+void musig2_context_sig_free(musig2_context_sig *mcs);
 
 /** Function    : musig2_init_signer
  *  Purpose     : Initializes a musig2 signer. Generates the keypair and creates a list of batch commitments for  signer.
+ *                Returns 0 if signer initialisation fails, 1 otherwise.
  *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
  *              : IN        : ctx: A secp256k1_context object.
  *                          : nr_messages: The number of messages.
+ * Returns      : 1/0.
  * */
 int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages);
 
@@ -121,3 +119,13 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
  * Returns      : 1/0.
  * */
 int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
+
+/** Function    : musig2_prepare_verifier
+ *  Purpose     : Prepares verification for schnorr verifier function. Aggregates the public key and serialises
+ *                to the format accepted by schorr_verify.
+ *  Parameters  : IN/OUT    : aggr_pk: serialised aggregated public key.
+ *              : IN        : ctx: secp256k1_context object.
+ *                          : pk_list: list of public keys from all signers
+ *                          : nr_signers: the total number of signers/keys submitted.
+ */
+void musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr_pk, secp256k1_pubkey *pk_list, int nr_signers);
