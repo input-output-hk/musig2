@@ -69,6 +69,8 @@ void musig2_context_free(musig2_context *mc);
 /*** Free memory allocated in MuSig2 context ***/
 void musig2_context_sig_free(musig2_context_sig *mcs);
 
+void musig2_context_aggr_R_free(musig2_context *mc, int nr_messages);
+
 /** Function    : musig2_init_signer
  *  Purpose     : Initializes a musig2 signer. Generates the keypair and creates a list of batch commitments for  signer.
  *                Returns 0 if signer initialisation fails, 1 otherwise.

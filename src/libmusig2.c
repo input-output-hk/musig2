@@ -177,12 +177,21 @@ void musig2_context_free(musig2_context *mc) {
     }
 }
 
+/*** Free memory allocated in MuSig2 context aggr_R_list ***/
+void musig2_context_aggr_R_free(musig2_context *mc, int nr_messages) {
+    for (int l = 0; l < V * nr_messages ; l++) {
+        free(mc->aggr_R_list[l]);
+    }
+    free(mc->aggr_R_list);
+}
+
 /*** Free memory allocated in MuSig2 Sig context ***/
 void musig2_context_sig_free(musig2_context_sig *mcs) {
     for (int l = mcs->state * V; l < mcs->nr_messages * V; l++) {
         free(mcs->comm_list[l]);
     }
     free(mcs->comm_list);
+    musig2_context_aggr_R_free(&mcs->mc, mcs->nr_messages);
     musig2_context_free(&mcs->mc);
 }
 
@@ -264,6 +273,7 @@ int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V], int
 
 int musig2_signer_precomputation(musig2_context *mc, secp256k1_pubkey *pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages){
     int i, j, k, ind;
+    int cnt = 0;
     mc->nr_signers = nr_signers;
     mc->aggr_R_list = malloc(sizeof (secp256k1_pubkey*) * nr_messages * V);
     secp256k1_pubkey batch_list[nr_messages][nr_signers][V];   // Stores the batches of signers
@@ -276,8 +286,13 @@ int musig2_signer_precomputation(musig2_context *mc, secp256k1_pubkey *pk_list, 
         }
     }
     for (k = 0; k < nr_messages; k++)
-        musig2_aggregate_R(mc, batch_list[k], k);
-    musig2_aggregate_pubkey(mc, pk_list);
+        cnt += musig2_aggregate_R(mc, batch_list[k], k);
+    if (cnt != nr_messages)
+        return 0;
+
+    if (!musig2_aggregate_pubkey(mc, pk_list)){
+        return 0;
+    }
 
     return 1;
 }

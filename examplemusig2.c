@@ -34,16 +34,16 @@ int main(void) {
     /**** musig2test parameters ****/
     int i, j, k, l, ind;
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_MESSAGES][NR_SIGNERS][V];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
+    secp256k1_pubkey temp_comm;
+
     size_t ser_size = SER_PK_BYTES;
     /**** Initialization ****/
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate a keypair for the signer and get batch commitments. */
         if (musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES))
-            ;
-//            printf("* Signer %d initialized.\n", i + 1);
+            printf("* Signer %d initialized.\n", i + 1);
         else
             printf("* Failed to initialize Signer %d.\n", i + 1);
 
@@ -55,8 +55,8 @@ int main(void) {
         for (k = 0; k < NR_MESSAGES; k++) {
             for (j = 0; j < V; j++, l++) {
                 ind = (k * NR_SIGNERS * V + i * V + j) * SER_PK_BYTES;
-                assert(secp256k1_keypair_pub(ctx, &batch_list[k][i][j], mcs_list[i].comm_list[l]));
-                secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind], &ser_size, &batch_list[k][i][j], SECP256K1_EC_UNCOMPRESSED );
+                assert(secp256k1_keypair_pub(ctx, &temp_comm, mcs_list[i].comm_list[l]));
+                secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind], &ser_size, &temp_comm, SECP256K1_EC_UNCOMPRESSED );
             }
         }
     }
@@ -65,22 +65,18 @@ int main(void) {
 
 
     printf("**** STATE 1 ************************************************************** \n");
-
-    // todo: idea: would  be good to 'prepare' signers for all the batch. This prepare
-    // function would compute the aggr pk, and all agr R values.
     /**** Aggregate the public keys and batch commitments for each signer ****/
-    for (i = 0; i < NR_SIGNERS; i++)
-        musig2_signer_precomputation(&mcs_list[i].mc, pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES);
-
     int cnt = 0;
-//    for (i = 0; i < NR_SIGNERS; i++)
-//        cnt += musig2_aggregate_pubkey(&mcs_list[i].mc, pk_list, NR_SIGNERS);
-//    printf("* %d signers aggregated public key.\n", cnt);
-//
-//    cnt = 0;
-//    for (i = 0; i < NR_SIGNERS; i++)
-//        cnt += musig2_aggregate_R(&mcs_list[i].mc, batch_list[mcs_list[i].state]);
-//    printf("* %d signers aggregated commitment.\n", cnt);
+    for (i = 0; i < NR_SIGNERS; i++)
+        cnt += musig2_signer_precomputation(&mcs_list[i].mc, pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES);
+
+    if (cnt != NR_SIGNERS){
+        for (k = 0; k < NR_SIGNERS; k++) {
+            musig2_context_sig_free(&mcs_list[k]);
+        }
+        return -1;
+    }
+
 
 
     /**** Signature ****/
@@ -121,7 +117,6 @@ int main(void) {
         return -1;
     }
 
-
     /**** Verification ****/
     secp256k1_xonly_pubkey aggr_pk;
 
@@ -133,17 +128,9 @@ int main(void) {
         printf("\n* Failed to verify Musig2!\n");
     printf("--------------------------------------------------------------------------- \n\n");
 
+
+
     printf("**** STATE 2 ************************************************************** \n");
-
-    /**** Aggregate batch commitments for each signer ****/
-    // todo: with the idea commented in STATE 1, the R computation (or initialisation) needs to be
-    // computed only once per message batch. This makes sense because it is not message dependent.
-//    cnt = 0;
-//    for (i = 0; i < NR_SIGNERS; i++)
-//        cnt += musig2_aggregate_R(&mcs_list[i].mc, batch_list[mcs_list->state]);
-//    printf("* %d signers aggregated commitment.\n", cnt);
-
-
     /**** Signature ****/
     printf("\n* Partial Signatures: \n");
 
@@ -158,7 +145,7 @@ int main(void) {
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
-            for (int k = i; k < NR_SIGNERS; k++) {
+            for (k = i; k < NR_SIGNERS; k++) {
                 musig2_context_sig_free(&mcs_list[k]);
             }
             return -1;

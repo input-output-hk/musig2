@@ -4,10 +4,13 @@ extern "C" {
 #include "config.h"
 
 
-static int init_musig2(secp256k1_context *ctx, secp256k1_pubkey *pk_list, secp256k1_pubkey *batch_list, musig2_context_sig *mcs_list, int nr_participants){
+static int init_musig2(secp256k1_context *ctx, secp256k1_pubkey *pk_list, unsigned char *serialized_batch_list, musig2_context_sig *mcs_list, int nr_participants){
     int i, j, k, l;
     int ind;
     int err;
+    secp256k1_pubkey temp_comm;
+    size_t ser_size = SER_PK_BYTES;
+
 
     /**** Initialization ****/
     for (i = 0; i < nr_participants; i++) {
@@ -26,30 +29,24 @@ static int init_musig2(secp256k1_context *ctx, secp256k1_pubkey *pk_list, secp25
         l = 0; // the index of the signer's commitment list.
         for (k = 0; k < NR_MESSAGES; k++) {
             for (j = 0; j < V; j++, l++) {
-                ind = (nr_participants * V * k) + (i * V) + j; // the index for the list of collected batches.
-                err = secp256k1_keypair_pub(ctx, &batch_list[ind], mcs_list[i].comm_list[l]);
+                ind = ((nr_participants * V * k) + (i * V) + j) * SER_PK_BYTES; // the index for the list of collected batches.
+                err = secp256k1_keypair_pub(ctx, &temp_comm, mcs_list[i].comm_list[l]);
                 if (err != 1) {
                     return err;
                 }
+                secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind], &ser_size, &temp_comm, SECP256K1_EC_UNCOMPRESSED );
             }
         }
     }
     return 1;
 }
 
-static int aggregate_pk_batch(secp256k1_pubkey *pk_list, secp256k1_pubkey *batch_list, musig2_context_sig *mcs_list){
+static int aggregate_pk_batch(secp256k1_pubkey *pk_list, unsigned char *serialized_batch_list, musig2_context_sig *mcs_list){
     /**** Aggregate the public keys and batch commitments for each signer ****/
     int i;
     int cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_pubkey(&mcs_list[i].mc, pk_list, NR_SIGNERS);
-    if (cnt != NR_SIGNERS) {
-        return cnt;
-    }
-
-    cnt = 0;
-    for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_R(&mcs_list[i].mc, (secp256k1_pubkey (*)[2]) batch_list);
+        cnt += musig2_signer_precomputation(&mcs_list[i].mc, pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES);
     if (cnt != NR_SIGNERS) {
         return cnt;
     }
@@ -70,7 +67,7 @@ static int sign_partial(musig2_context_sig *mcs_list, musig2_partial_signature* 
 
 static int musig2_ver_musig(secp256k1_context *ctx, const unsigned char *signature, secp256k1_pubkey &aggr_pk, const unsigned char *msg, int msg_len) {
     secp256k1_xonly_pubkey xonly_aggr_pk;
-    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_aggr_pk, NULL, &aggr_pk));
+    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_aggr_pk, nullptr, &aggr_pk));
 
     return secp256k1_schnorrsig_verify(ctx, signature, msg, msg_len, &xonly_aggr_pk);
 }
@@ -80,17 +77,18 @@ TEST (musig2, valid_signature) {
     int err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[NR_SIGNERS];
     unsigned char signature[SCH_SIG_BYTES];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
+
 
     // Init signers, store public keys, generate batch commitments for `NR_SIGNERS`.
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments.
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, mcs_list);
     ASSERT_EQ(err, 1);
 
     // Generate partial signatures for `less_signers`.
@@ -111,17 +109,17 @@ TEST (musig2, not_enough_signatures) {
     int err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[less_signers];
     unsigned char signature[SCH_SIG_BYTES];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
 
     // Init signers, store public keys, generate batch commitments for `NR_SIGNERS`.
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments.
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, mcs_list);
     ASSERT_EQ(err, 1);
 
     // Generate partial signatures for `less_signers`.
@@ -142,17 +140,17 @@ TEST (musig2, non_corresponding_signers) {
     int err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[nr_participants];    // Signers' public key list
-    secp256k1_pubkey batch_list[nr_participants * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[nr_participants]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[NR_SIGNERS];
     unsigned char signature[SCH_SIG_BYTES];
+    unsigned char serialized_batch_list[nr_participants * NR_SIGNERS * V * SER_PK_BYTES];
 
     // Init signers, store public keys, create batch commitments for `nr_participants`.
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, nr_participants);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, nr_participants);
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments for `mcs_list[1], ..., mcs_list[NR_SIGNERS]`.
-    err = aggregate_pk_batch(pk_list, batch_list, &mcs_list[1]);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, &mcs_list[1]);
     ASSERT_EQ(err, 1);
 
     // Generate partial signatures for `mcs_list[1], ..., mcs_list[NR_SIGNERS]`.
@@ -176,17 +174,17 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[NR_SIGNERS]; // Signers' public key list
     secp256k1_pubkey tmp;
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[NR_SIGNERS];
     unsigned char signature[SCH_SIG_BYTES];
     unsigned char tweak[SCALAR_BYTES] = {7};
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
 
     // Init signers, store public keys, generate batch commitments for `NR_SIGNERS`.
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, mcs_list);
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments.
@@ -214,21 +212,21 @@ TEST (musig2, previous_state) {
     int i, err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps1[NR_SIGNERS];
     musig2_partial_signature mps2[NR_SIGNERS];
     unsigned char signature1[SCH_SIG_BYTES];
     unsigned char signature2[SCH_SIG_BYTES];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
     /******************************************************************************************************************/
 
     /*** STATE = 0 ****************************************************************************************************/
     // Musig2 proceeds as it is supposed to do for the first state.
 
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, mcs_list);
     ASSERT_EQ(err, 1);
 
     err = sign_partial(mcs_list, mps1, NR_SIGNERS);
@@ -242,9 +240,9 @@ TEST (musig2, previous_state) {
     /******************************************************************************************************************/
 
     /*** STATE = 1 ****************************************************************************************************/
-    // Aggregate the public keys and the batch commitments for `STATE = 1`.
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
-    ASSERT_EQ(err, 1);
+//    // Aggregate the public keys and the batch commitments for `STATE = 1`.
+//    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+//    ASSERT_EQ(err, 1);
 
     // One of the signers will sign for the previous state.
     mcs_list[0].state = 0;
@@ -276,15 +274,15 @@ TEST (musig2, future_state) {
     int err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[NR_SIGNERS];
     unsigned char signature[SCH_SIG_BYTES];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
 
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, mcs_list);
     ASSERT_EQ(err, 1);
 
     // One of the signers will sign for a future state.
@@ -293,7 +291,7 @@ TEST (musig2, future_state) {
     ASSERT_EQ(err, 1);
 
     err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
-    ASSERT_EQ(err, 1);
+    ASSERT_EQ(err, -1);
 
     // Verification should fail since one of the signers' signature used a future state.
     err = musig2_ver_musig(ctx, signature, mcs_list[0].mc.aggr_pk, MSG_1, MSG_1_LEN);
@@ -306,15 +304,15 @@ TEST (musig2, invalid_signer_key) {
     int err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[NR_SIGNERS];
     unsigned char signature[SCH_SIG_BYTES];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
 
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, mcs_list);
     ASSERT_EQ(err, 1);
 
     // Flip a bit of a signer's keypair.
@@ -336,15 +334,15 @@ TEST (musig2, invalid_single_signature) {
     int err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[NR_SIGNERS];
     unsigned char signature[SCH_SIG_BYTES];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
 
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, mcs_list);
     ASSERT_EQ(err, 1);
 
     err = sign_partial(mcs_list, mps, NR_SIGNERS);
@@ -367,17 +365,17 @@ TEST (musig2, aggregate_invalid_public_key) {
     int err;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     musig2_partial_signature mps[NR_SIGNERS];
     unsigned char signature[SCH_SIG_BYTES];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
 
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Flip a bit of one of the signers' public key.
     pk_list[0].data[0] ^= 1;
-    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
+    err = aggregate_pk_batch(pk_list, serialized_batch_list, mcs_list);
     ASSERT_EQ(err, 1);
 
     err = sign_partial(mcs_list, mps, NR_SIGNERS);
@@ -402,8 +400,9 @@ TEST (musig2, pk_list_serialize_deserialize) {
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     secp256k1_pubkey serde_pk_list[NR_SIGNERS];
     unsigned char serialized_pk_list[ser_size * NR_SIGNERS];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
 
-    err = init_musig2(ctx, pk_list, batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(ctx, pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     for (i = 0; i < NR_SIGNERS; i++)
