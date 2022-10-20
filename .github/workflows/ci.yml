@@ -18,6 +18,9 @@ jobs:
       - name: Install gtest manually
         run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
 
+      - name: Install Valgrind
+        run: sudo apt-get -y install valgrind
+
       - name: Install secp256k1
         run: |
           sudo apt-get -y install autoconf automake libtool
@@ -33,12 +36,19 @@ jobs:
           sudo make install
           cd ../..
 
-      - name: Run tests
+      - name: Build gtests
         run: |
           mkdir build
-          mkdir test_musig2
+          mkdir gtest_run
+          mkdir ctest_run
           clang -c -g src/libmusig2.c -o build/musig2.o
           ar rcs build/libmusig2.a build/musig2.o
           ranlib build/libmusig2.a
-          clang -x c++ -std=c++11 tests/gtestmusig2.c -g -o test_musig2/gtest -L./build -lmusig2 -lsecp256k1 -lstdc++ -lgtest -lgtest_main -pthread
-          test_musig2/gtest
+          clang -x c++ -std=c++11 tests/gtestmusig2.c -g -o gtest_run/gtest -L./build -lmusig2 -lsecp256k1 -lstdc++ -lgtest -lgtest_main -pthread
+          clang examplemusig2.c -g -o ctest_run/ctest -L./build -lmusig2 -lsecp256k1
+
+      - name: Run gtests
+        run: gtest_run/gtest
+
+      - name: Run Valgrind
+        run: valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes ctest_run/ctest

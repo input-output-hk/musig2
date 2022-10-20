@@ -34,5 +34,12 @@ ctest: lib_musig2
 	mkdir ctest_run
 	$(CC) $(CFLAGS) $(LDLIBS) examplemusig2.c -L./build -lmusig2 -o ctest_run/ctest
 
+run_tests: gtest ctest
+	ctest_run/ctest
+	gtest_run/gtest
+
+valgrind: ctest
+	valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes ctest_run/ctest
+
 clean:
 	rm -rf *.o build gtest_run ctest_run
