@@ -16,6 +16,7 @@
 #define PAR_SIG_BYTES      32          // PARTIAL SIGNATURE BYTES
 #define PK_BYTES           64          // FULL SIZE PUBLIC KEY BYTES
 #define SCH_SIG_BYTES      64          // SCHNORR SIGNATURE BYTES
+#define SER_PK_BYTES       65
 
 
 /** Struct      : musig2_context
@@ -30,7 +31,7 @@
 typedef struct{
     secp256k1_context* ctx;
     secp256k1_pubkey aggr_pk;
-    secp256k1_pubkey aggr_R_list[V];
+    secp256k1_pubkey **aggr_R_list;
     int par_pk;
     int nr_signers;
     unsigned char *L;
@@ -86,7 +87,7 @@ int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_m
  *                          : nr_signers: The number of signers.
  * Returns      : 1/0.
  * */
-int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int nr_signers);
+int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list);
 
 /** Function    : musig2_aggregate_R
  *  Purpose     : Aggregates the given list of batch commitments of `n` signers for `V` into `aggr_R_list`.
@@ -95,7 +96,7 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list, int n
  *              : IN        : batch_list: The list of batch commitments.
  * Returns      : 1/0.
  * */
-int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V]);
+int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V], int state);
 
 /** Function    : musig2_sign
  *  Purpose     : Starts the signature process for signer and calls `musig2_sign_partial`.
@@ -129,3 +130,7 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatur
  *                          : nr_signers: the total number of signers/keys submitted.
  */
 void musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr_pk, secp256k1_pubkey *pk_list, int nr_signers);
+
+
+
+int musig2_signer_precomputation(musig2_context *mc, secp256k1_pubkey *pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);

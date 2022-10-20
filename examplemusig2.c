@@ -32,17 +32,18 @@ int main(void) {
     printf("--------------------------------------------------------------------------- \n");
 
     /**** musig2test parameters ****/
-    int i, j, k, l;
+    int i, j, k, l, ind;
     secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
     secp256k1_pubkey batch_list[NR_MESSAGES][NR_SIGNERS][V];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
-
-
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
+    size_t ser_size = SER_PK_BYTES;
     /**** Initialization ****/
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate a keypair for the signer and get batch commitments. */
         if (musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES))
-            printf("* Signer %d initialized.\n", i + 1);
+            ;
+//            printf("* Signer %d initialized.\n", i + 1);
         else
             printf("* Failed to initialize Signer %d.\n", i + 1);
 
@@ -53,7 +54,9 @@ int main(void) {
         l = 0; // the index of the signer's commitment list.
         for (k = 0; k < NR_MESSAGES; k++) {
             for (j = 0; j < V; j++, l++) {
+                ind = (k * NR_SIGNERS * V + i * V + j) * SER_PK_BYTES;
                 assert(secp256k1_keypair_pub(ctx, &batch_list[k][i][j], mcs_list[i].comm_list[l]));
+                secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind], &ser_size, &batch_list[k][i][j], SECP256K1_EC_UNCOMPRESSED );
             }
         }
     }
@@ -66,15 +69,18 @@ int main(void) {
     // todo: idea: would  be good to 'prepare' signers for all the batch. This prepare
     // function would compute the aggr pk, and all agr R values.
     /**** Aggregate the public keys and batch commitments for each signer ****/
-    int cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_pubkey(&mcs_list[i].mc, pk_list, NR_SIGNERS);
-    printf("* %d signers aggregated public key.\n", cnt);
+        musig2_signer_precomputation(&mcs_list[i].mc, pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES);
 
-    cnt = 0;
-    for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_R(&mcs_list[i].mc, batch_list[mcs_list[i].state]);
-    printf("* %d signers aggregated commitment.\n", cnt);
+    int cnt = 0;
+//    for (i = 0; i < NR_SIGNERS; i++)
+//        cnt += musig2_aggregate_pubkey(&mcs_list[i].mc, pk_list, NR_SIGNERS);
+//    printf("* %d signers aggregated public key.\n", cnt);
+//
+//    cnt = 0;
+//    for (i = 0; i < NR_SIGNERS; i++)
+//        cnt += musig2_aggregate_R(&mcs_list[i].mc, batch_list[mcs_list[i].state]);
+//    printf("* %d signers aggregated commitment.\n", cnt);
 
 
     /**** Signature ****/
@@ -132,10 +138,10 @@ int main(void) {
     /**** Aggregate batch commitments for each signer ****/
     // todo: with the idea commented in STATE 1, the R computation (or initialisation) needs to be
     // computed only once per message batch. This makes sense because it is not message dependent.
-    cnt = 0;
-    for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_aggregate_R(&mcs_list[i].mc, batch_list[mcs_list->state]);
-    printf("* %d signers aggregated commitment.\n", cnt);
+//    cnt = 0;
+//    for (i = 0; i < NR_SIGNERS; i++)
+//        cnt += musig2_aggregate_R(&mcs_list[i].mc, batch_list[mcs_list->state]);
+//    printf("* %d signers aggregated commitment.\n", cnt);
 
 
     /**** Signature ****/
