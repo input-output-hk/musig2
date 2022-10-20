@@ -178,8 +178,14 @@ int main(void) {
 
 
     /**** Verification ****/
+    // We could, in principle use `aggr_pk`, but we are just showcasing that
+    // the verifier from round 2 might be different to that of round 1, and
+    // therefore the key needs to be recomputed.
+    secp256k1_xonly_pubkey aggr_pk_2;
+
+    musig2_prepare_verifier(ctx, &aggr_pk_2, pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &aggr_pk)) {
+    if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &aggr_pk_2)) {
         printf("\n* Musig2 is VALID!\n");
     }
     else
