@@ -83,12 +83,12 @@ However, the aggregation of public keys and the commitments may not result point
 Therefore, signers do the following in the single signature generation step:
 
 
-- **Case 1** ($X$ has odd, $R$ has even `Y` coordinate): In this case, signers negate $c$. 
+- **Case 1** ( $X$ has odd, $R$ has even `Y` coordinate): In this case, signers negate $c$. 
 Negating $c$ is equivalent to negating $X$, since
 
 $$ G \cdot s = R + (-X) \cdot (-c) $$
 
-- **Case 2** ($X$ has even, $R$ has odd `Y` coordinate): In this case, 
+- **Case 2** ( $X$ has even, $R$ has odd `Y` coordinate): In this case, 
 signers negate every element in the list $b^0, b^1, \ldots, b^{V-1}$, so $R$ is also negated.
 
 - **Case 3** (Both have odd `Y` coordinates): Signers negates their partial signature, so that the aggregated signature will be negated:
@@ -97,8 +97,12 @@ $$ G \cdot (-s) = (-R) + (-X) \cdot c. $$
 
 ### AOMDL
 The security of MuSig2 depends on the hardness of *algebraic one more discrete logarithm (AOMDL)* problem. 
-In the standard one more discrete logarithm problem, an adversary is given the public parameters ($E(F_p), G, p$) and wins if it can solve the discrete logarithms ($x_1, \ldots, x_{q+1}$) of $q+1$ challenge group elements ($X_1, \ldots, X_{q+1}$) by only making at most $q$ queries to $D_{LOG}$ oracle.
-The algebraic version of this problem requires to include an algebraic representation $(\alpha, (\beta_i)_{1 \leq i \leq c})$ of the challenge $X$ such $X = G \cdot \alpha + \Sigma_{i=1}^{c}(X_i \cdot \beta_i)$.
+In the standard one more discrete logarithm problem, an adversary is given the public parameters $(E(F_p), G, p)$ and wins if it can solve the discrete logarithms $(x_1, \ldots, x_{q+1})$ of $q+1$ challenge group elements $(X_1, \ldots, X_{q+1})$ by only making at most $q$ queries to $D_{LOG}$ oracle.
+The algebraic version of this problem requires to include an algebraic representation $(\alpha, (\beta_i)_{1 \leq i \leq c})$ 
+of the challenge $X$ such that:
+
+$$ X = G \cdot \alpha + \Sigma_{i = 1}^{c}(X_i \cdot \beta_i). $$
+
 The question is that whether using xonly encoding for the public keys reduce the security of the scheme.
 If there exists a polynomial algorithm to solve AOMDL for xonly encoding of a curve point, then it basically implies that AOMDL is broken for full-size encoding as well, since every `X` coordinate has two possible `Y` coordinate as odd or even. 
 
