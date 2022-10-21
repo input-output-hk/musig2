@@ -240,9 +240,6 @@ TEST (musig2, previous_state) {
     /******************************************************************************************************************/
 
     /*** STATE = 1 ****************************************************************************************************/
-//    // Aggregate the public keys and the batch commitments for `STATE = 1`.
-//    err = aggregate_pk_batch(pk_list, batch_list, mcs_list);
-//    ASSERT_EQ(err, 1);
 
     // One of the signers will sign for the previous state.
     mcs_list[0].state = 0;

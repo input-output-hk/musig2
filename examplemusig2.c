@@ -50,7 +50,7 @@ int main(void) {
         /* Store the public key of the signer in pk_list */
         assert (secp256k1_keypair_pub(ctx, &pk_list[i], &mcs_list[i].keypair));
 
-        /* Store the batch commitments of the signer in batch_list */
+        /* Store the batch commitments of the signer in serialized batch_list */
         l = 0; // the index of the signer's commitment list.
         for (k = 0; k < NR_MESSAGES; k++) {
             for (j = 0; j < V; j++, l++) {
@@ -62,23 +62,20 @@ int main(void) {
     }
     printf("--------------------------------------------------------------------------- \n\n");
 
-
-
-    printf("**** STATE 1 ************************************************************** \n");
-    /**** Aggregate the public keys and batch commitments for each signer ****/
+    /**** Aggregate the public keys and batch commitments for each signer for all messages ****/
     int cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
         cnt += musig2_signer_precomputation(&mcs_list[i].mc, pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES);
 
+    // todo: Do we need to free all signers?
     if (cnt != NR_SIGNERS){
-        for (k = 0; k < NR_SIGNERS; k++) {
+        for (k = 0; k < NR_SIGNERS; k++)
             musig2_context_sig_free(&mcs_list[k]);
-        }
         return -1;
     }
 
 
-
+    printf("**** STATE 1 ************************************************************** \n");
     /**** Signature ****/
     printf("\n* Partial Signatures: \n");
 

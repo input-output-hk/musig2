@@ -277,6 +277,8 @@ int musig2_signer_precomputation(musig2_context *mc, secp256k1_pubkey *pk_list, 
     mc->nr_signers = nr_signers;
     mc->aggr_R_list = malloc(sizeof (secp256k1_pubkey*) * nr_messages * V);
     secp256k1_pubkey batch_list[nr_messages][nr_signers][V];   // Stores the batches of signers
+
+    // Parse the batch commitments of the signers
     for (i = 0; i < nr_signers; i++) {
         for (k = 0; k < nr_messages; k++) {
             for (j = 0; j < V; j++) {
@@ -285,14 +287,16 @@ int musig2_signer_precomputation(musig2_context *mc, secp256k1_pubkey *pk_list, 
             }
         }
     }
+
+    // Aggregate R for each message to be signed.
     for (k = 0; k < nr_messages; k++)
         cnt += musig2_aggregate_R(mc, batch_list[k], k);
+
     if (cnt != nr_messages)
         return 0;
 
-    if (!musig2_aggregate_pubkey(mc, pk_list)){
+    if (!musig2_aggregate_pubkey(mc, pk_list))
         return 0;
-    }
 
     return 1;
 }

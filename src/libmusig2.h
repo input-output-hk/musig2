@@ -23,9 +23,9 @@
  *  Purpose     : Stores the parameters of musig2.
  *  Parameters  : ctx: a secp256k1_context object.
  *              : aggr_pk: Aggregated public key.
- *              : aggr_R: Aggregated R.
+ *              : aggr_R_list: The list of aggregated batch commitments for all states.
+ *              : par_pk: Parity of aggregate pubkey.
  *              : L: Concatenation of x_only public keys of signers.
- *              : state: The state of musig2.
  *              : nr_signers: The number of signers.
  * */
 typedef struct{
@@ -42,8 +42,8 @@ typedef struct{
  *  Parameters  : mc: a musig2_context object including the parameters of musig2.
  *              : comm_list: Batch commitment list of a signer.
  *              : keypair: Public and secret keys of signers.
- *              : aggr_R_list: The list of aggregated batch commitments.
  *              : nr_messages: The number of messages.
+ *              : state: The state of musig2.
  * */
 typedef struct {
     musig2_context mc;
@@ -56,7 +56,7 @@ typedef struct {
 /** Struct      : musig2_partial_signature
  *  Purpose     : Stores the parameters to aggregate a partial signature.
  *  Parameters  : sig: The partial signature of a signer.
- *              : R: The nonce of a signer.
+ *              : R: The aggregated commitment of the signer.
  * */
 typedef struct{
     unsigned char sig[PAR_SIG_BYTES];
@@ -69,6 +69,7 @@ void musig2_context_free(musig2_context *mc);
 /*** Free memory allocated in MuSig2 context ***/
 void musig2_context_sig_free(musig2_context_sig *mcs);
 
+/*** Free memory allocated in MuSig2 context aggr_R_list ***/
 void musig2_context_aggr_R_free(musig2_context *mc, int nr_messages);
 
 /** Function    : musig2_init_signer
@@ -134,5 +135,13 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatur
 void musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr_pk, secp256k1_pubkey *pk_list, int nr_signers);
 
 
-
+/** Function    : musig2_signer_precomputation
+ *  Purpose     : Prepares the signer for partial signature generation. Aggregates the public keys and the batch commitments for all messages to be signed.
+ *                Returns 1 if public keys and commitments aggregated successfully, 0 otherwise.
+ *  Parameters  : IN/OUT    : mc: musig2_context objec.
+ *              : IN        : pk_list: list of public keys from all signers
+ *                          : serialized_batch_list: The string including the list of batch commitments of all signers for all states.
+ *                          : nr_signers: the total number of signers/keys submitted.
+ *                          : nr_messages: the number of messages to be signed.
+ */
 int musig2_signer_precomputation(musig2_context *mc, secp256k1_pubkey *pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
