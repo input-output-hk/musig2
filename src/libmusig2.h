@@ -56,7 +56,7 @@ typedef struct {
 /** Struct      : musig2_partial_signature
  *  Purpose     : Stores the parameters to aggregate a partial signature.
  *  Parameters  : sig: The partial signature of a signer.
- *              : R: The aggregated commitment of the signer.
+ *              : R: The aggregated commitment of the signature.
  * */
 typedef struct{
     unsigned char sig[PAR_SIG_BYTES];
