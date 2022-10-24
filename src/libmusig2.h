@@ -138,7 +138,7 @@ void musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *agg
 /** Function    : musig2_signer_precomputation
  *  Purpose     : Prepares the signer for partial signature generation. Aggregates the public keys and the batch commitments for all messages to be signed.
  *                Returns 1 if public keys and commitments aggregated successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : mc: musig2_context objec.
+ *  Parameters  : IN/OUT    : mc: musig2_context object.
  *              : IN        : pk_list: list of public keys from all signers
  *                          : serialized_batch_list: The string including the list of batch commitments of all signers for all states.
  *                          : nr_signers: the total number of signers/keys submitted.
