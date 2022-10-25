@@ -33,12 +33,12 @@ int main(void) {
 
     /**** musig2test parameters ****/
     int i, j, k, l, ind;
-    secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
+    unsigned char serialized_pk_list[NR_SIGNERS * SER_PK_BYTES_COMPRESSED];    // Signers' public key list
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
-    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES];
-    secp256k1_pubkey temp_comm;
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES_COMPRESSED];
+    secp256k1_pubkey temp_pk;
 
-    size_t ser_size = SER_PK_BYTES;
+    size_t ser_size = SER_PK_BYTES_COMPRESSED;
     /**** Initialization ****/
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate a keypair for the signer and get batch commitments. */
@@ -48,31 +48,29 @@ int main(void) {
             printf("* Failed to initialize Signer %d.\n", i + 1);
 
         /* Store the public key of the signer in pk_list */
-        assert (secp256k1_keypair_pub(ctx, &pk_list[i], &mcs_list[i].keypair));
+        assert (secp256k1_keypair_pub(ctx, &temp_pk, &mcs_list[i].keypair));
+        secp256k1_ec_pubkey_serialize(ctx, &serialized_pk_list[i * SER_PK_BYTES_COMPRESSED], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
 
         /* Store the batch commitments of the signer in serialized batch_list */
         l = 0; // the index of the signer's commitment list.
         for (k = 0; k < NR_MESSAGES; k++) {
             for (j = 0; j < V; j++, l++) {
-                ind = (k * NR_SIGNERS * V + i * V + j) * SER_PK_BYTES;
-                assert(secp256k1_keypair_pub(ctx, &temp_comm, mcs_list[i].comm_list[l]));
-                secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind], &ser_size, &temp_comm, SECP256K1_EC_UNCOMPRESSED );
+                ind = (k * NR_SIGNERS * V + i * V + j) * SER_PK_BYTES_COMPRESSED;
+                assert(secp256k1_keypair_pub(ctx, &temp_pk, mcs_list[i].comm_list[l]));
+                secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
             }
         }
     }
     printf("--------------------------------------------------------------------------- \n\n");
 
     /**** Aggregate the public keys and batch commitments for each signer for all messages ****/
-    int cnt = 0;
-    for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_signer_precomputation(&mcs_list[i].mc, pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES);
-
-    // todo: Do we need to free all signers?
-    if (cnt != NR_SIGNERS){
-        for (k = 0; k < NR_SIGNERS; k++)
+    for (i = 0; i < NR_SIGNERS; i++) {
+        if (!musig2_signer_precomputation(&mcs_list[i].mc, serialized_pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES)) {
             musig2_context_sig_free(&mcs_list[k]);
-        return -1;
+            return -1;
+        }
     }
+
 
 
     printf("**** STATE 1 ************************************************************** \n");
@@ -117,7 +115,7 @@ int main(void) {
     /**** Verification ****/
     secp256k1_xonly_pubkey aggr_pk;
 
-    musig2_prepare_verifier(ctx, &aggr_pk, pk_list, NR_SIGNERS);
+    musig2_prepare_verifier(ctx, &aggr_pk, serialized_pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
     if (secp256k1_schnorrsig_verify(ctx, signature1, MSG_1, MSG_1_LEN, &aggr_pk))
         printf("\n* Musig2 is VALID!\n");
@@ -173,7 +171,7 @@ int main(void) {
     // therefore the key needs to be recomputed.
     secp256k1_xonly_pubkey aggr_pk_2;
 
-    musig2_prepare_verifier(ctx, &aggr_pk_2, pk_list, NR_SIGNERS);
+    musig2_prepare_verifier(ctx, &aggr_pk_2, serialized_pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
     if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &aggr_pk_2)) {
         printf("\n* Musig2 is VALID!\n");
