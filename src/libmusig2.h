@@ -10,13 +10,13 @@
 
 
 // todo: use the secp library constants
-#define V                   2          // Number of nonce values
-#define SCALAR_BYTES       32          // SCALAR BYTES
-#define XONLY_BYTES        32          // XONLY PUBLIC KEY BYTES
-#define PAR_SIG_BYTES      32          // PARTIAL SIGNATURE BYTES
-#define PK_BYTES           64          // FULL SIZE PUBLIC KEY BYTES
-#define SCH_SIG_BYTES      64          // SCHNORR SIGNATURE BYTES
-#define SER_PK_BYTES_COMPRESSED       33
+#define V                               2           // Number of nonce values
+#define SCALAR_BYTES                    32          // SCALAR BYTES
+#define XONLY_BYTES                     32          // XONLY PUBLIC KEY BYTES
+#define PAR_SIG_BYTES                   32          // PARTIAL SIGNATURE BYTES
+#define PK_BYTES                        64          // FULL SIZE PUBLIC KEY BYTES
+#define SCH_SIG_BYTES                   64          // SCHNORR SIGNATURE BYTES
+#define SER_PK_BYTES_COMPRESSED         33          // Serialized public key bytes for compressed version
 
 
 /** Struct      : musig2_context
@@ -133,11 +133,14 @@ void musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *agg
 
 
 /** Function    : musig2_signer_precomputation
- *  Purpose     : Prepares the signer for partial signature generation for a batch of `nr_messages`. Aggregates the public keys and the batch commitments for all messages to be signed.
+ *  Purpose     : Prepares the signer for partial signature generation for a batch of `nr_messages`.
+ *                Aggregates the public keys and the batch commitments for all messages to be signed.
+ *                It takes serialized_pk_list and serialized_batch_list as parameters and
+ *                they are expected to be serialized in compressed form (a public key is represented with 33 bytes in compressed form).
  *                Returns 1 if public keys and commitments aggregated successfully, 0 otherwise.
  *  Parameters  : IN/OUT    : mc: musig2_context object.
- *              : IN        : pk_list: list of public keys from all signers
- *                          : serialized_batch_list: The string including the list of batch commitments of all signers for all states.
+ *              : IN        : serialized_pk_list: The string including the list of serialized public keys from all signers.
+ *                          : serialized_batch_list: The string including the list of serialized batch commitments of all signers for all states.
  *                          : nr_signers: the total number of signers/keys submitted.
  *                          : nr_messages: the number of messages to be signed.
  */
