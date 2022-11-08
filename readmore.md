@@ -5,7 +5,7 @@ This is a MuSig2 implementation using the libsecp256k1 library for EC operations
 To install the library, follow the directions in [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
 The library provides an optimized C library for ECDSA signatures and secret and public key operations on curve ecp256k1, as well as usage examples including ECDSA and Schnorr signatures.
 
-This implementation requires configuring the libsecp256k1 with an additional flag `--enable-module-schnorrsig` as stated in [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
+This implementation requires configuring the libsecp256k1 with an additional flag `--enable-module-schnorrsig` as stated in [libsecp256k1](https://github.com/bitcoin-core/secp256k1#build-steps).
 
 Run the example with examplemusig2.c
 
@@ -43,7 +43,7 @@ The signature scheme works as follows:
 ### Modifications
 
 - #### Encoding nonce and public key:
-Instead of encoding full `X`, `Y` coordinates of $R$ and $X$ (64-byte public key, 96-byte signature), or compressed encoding (33-byte public key, 65-byte signature), BIP-430 preferred to use xonly encoding (32-byte public key, 64-byte signature).
+Instead of encoding full `X`, `Y` coordinates of $X$ and $R$ (which results in a 64-byte public key and 96-byte signature), or compressed encoding (33-byte public key, 65-byte signature respectively), BIP-430 preferred to use xonly encoding (32-byte public key, 64-byte signature).
 
 - #### Implicit `Y` coordinate:
 Schnorr signatures of BIP-430 implicitly choose the `Y` coordinate that is even.
