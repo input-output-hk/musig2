@@ -51,4 +51,4 @@ jobs:
         run: test_run/test
 
       - name: Run Valgrind
-        run: valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes ctest_run/ctest
+        run: valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes example_run/example
