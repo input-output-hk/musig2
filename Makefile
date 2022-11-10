@@ -13,7 +13,7 @@ INCLUDES = src/libmusig2.h src/random.h
 AR=ar rcs
 RANLIB=ranlib
 
-all: gtest ctest lib_musig2
+all: test example lib_musig2
 
 
 build/musig2.o: src/libmusig2.c $(INCLUDES)
@@ -24,22 +24,22 @@ lib_musig2: build/musig2.o
 	$(AR) build/libmusig2.a $^
 	$(RANLIB) build/libmusig2.a
 
-gtest: lib_musig2
-	rm -rf gtest_run
-	mkdir gtest_run
-	$(CC) $(CPPFLAGS) $(GTEST_LDLIBS) tests/gtestmusig2.c -L./build -lmusig2 -o gtest_run/gtest
+test: lib_musig2
+	rm -rf test_run
+	mkdir test_run
+	$(CC) $(CPPFLAGS) $(GTEST_LDLIBS) tests/testmusig2.c -L./build -lmusig2 -o test_run/test
 
-ctest: lib_musig2
-	rm -rf ctest_run
-	mkdir ctest_run
-	$(CC) $(CFLAGS) $(LDLIBS) examplemusig2.c -L./build -lmusig2 -o ctest_run/ctest
+example: lib_musig2
+	rm -rf example_run
+	mkdir example_run
+	$(CC) $(CFLAGS) $(LDLIBS) examplemusig2.c -L./build -lmusig2 -o example_run/example
 
-run_tests: gtest ctest
-	ctest_run/ctest
-	gtest_run/gtest
+run_tests: test example
+	example_run/example
+	test_run/test
 
-valgrind: ctest
-	valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes ctest_run/ctest
+valgrind: example
+	valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes example_run/example
 
 clean:
-	rm -rf *.o build gtest_run ctest_run
+	rm -rf *.o build test_run example_run
