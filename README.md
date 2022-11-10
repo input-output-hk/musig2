@@ -38,4 +38,4 @@ make valgrind
 
 ### Security of MuSig2 with BIP-340 Compatibility
 
-See [Security.md](https://github.com/input-output-hk/musig2/blob/readme-bip-compat/Security.md) for the BIP-340 compatibility of MuSig2.
+See [Security](https://github.com/input-output-hk/musig2/blob/readme-bip-compat/Security.md) for the BIP-340 compatibility of MuSig2.
