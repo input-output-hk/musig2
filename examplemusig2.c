@@ -34,25 +34,19 @@ int main(void) {
 
     /**** Initialization ****/
     for (i = 0; i < NR_SIGNERS; i++) {
+        unsigned char serialized_comm_list[V * NR_MESSAGES][MUSIG2_PUBKEY_BYTES_COMPRESSED];
+        unsigned char serialized_pk[MUSIG2_PUBKEY_BYTES_COMPRESSED];
+
         /* Generate a keypair for the signer and get batch commitments. */
-        if (musig2_init_signer(&mcs_list[i], NR_MESSAGES)) {
+        if (musig2_init_signer(&mcs_list[i], serialized_pk, serialized_comm_list, NR_MESSAGES)) {
             printf("* Signer %d initialized.\n", i + 1);
-
-            /* Prepare signer to register. */
-            unsigned char serialized_comm_list[V * NR_MESSAGES][MUSIG2_PUBKEY_BYTES_COMPRESSED];
+            memcpy(&serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_pk, MUSIG2_PUBKEY_BYTES_COMPRESSED);
             l = 0; // the index of the signer's commitment list.
+            for (k = 0; k < NR_MESSAGES; k++)
+                for (j = 0; j < V; j++, l++)
+                    memcpy(&serialized_batch_list[(k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list[l],
+                           MUSIG2_PUBKEY_BYTES_COMPRESSED);
 
-            /* Store the serialized pubkey of the signer */
-            if (musig2_prepare_signer_to_register(&mcs_list[i], &serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list)) {
-                /* Store the batch commitments of the signer in serialized batch_list */
-                for (k = 0; k < NR_MESSAGES; k++)
-                    for (j = 0; j < V; j++, l++)
-                        memcpy(&serialized_batch_list[(k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list[l],
-                               MUSIG2_PUBKEY_BYTES_COMPRESSED);
-            }
-            else {
-                printf("* Failed to register Signer %d.\n", i + 1);
-            }
         }
         else {
             printf("* Failed to initialize Signer %d.\n", i + 1);

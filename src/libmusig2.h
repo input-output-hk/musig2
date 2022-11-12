@@ -81,7 +81,7 @@ void musig2_context_sig_free(musig2_context_sig *mcs);
  *                          : nr_messages: The number of messages.
  * Returns      : 1/0.
  * */
-int musig2_init_signer(musig2_context_sig *mcs, int nr_messages);
+int musig2_init_signer(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_comm_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED], int nr_messages);
 
 /** Function    : musig2_aggregate_pubkey
  *  Purpose     : Aggregates the given list of public keys.

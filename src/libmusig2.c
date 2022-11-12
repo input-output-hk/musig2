@@ -221,14 +221,8 @@ int musig2_prepare_signer_to_register(musig2_context_sig *mcs, unsigned char *se
 }
 
 /**** Signer ****/
-int musig2_init_signer(musig2_context_sig *mcs, int nr_messages) {
+int musig2_init_signer(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_comm_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED], int nr_messages) {
 
-    /* Initialize the secp256k1_context to operate on secp256k1 curve.
-     * MuSig2 library generates a multi-signature in the form of the schnorr signature obtained by secp256k1_schnorrsig_sign32
-     * with the library functions of libsecp256k1, however we do not use secp256k1_schnorrsig_sign32 function.
-     * Thus, we create the context with only SECP256K1_CONTEXT_VERIFY flag instead of using
-     * SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY. */
-//    ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     mcs->mc.ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     mcs->state = 0;
     mcs->mc.nr_messages = nr_messages;
@@ -241,6 +235,11 @@ int musig2_init_signer(musig2_context_sig *mcs, int nr_messages) {
 
     /* Generate the batch commitments for given signer */
     if (!musig2_batch_commitment(mcs)) {
+        musig2_context_sig_free(mcs);
+        return 0;
+    }
+
+    if (!musig2_prepare_signer_to_register(mcs, serialized_pubkey, serialized_comm_list)){
         musig2_context_sig_free(mcs);
         return 0;
     }
