@@ -171,6 +171,9 @@ static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned
 
 /*** Free memory allocated in MuSig2 context ***/
 void musig2_context_free(musig2_context *mc) {
+    if (mc->ctx != NULL) {
+        secp256k1_context_destroy(mc->ctx);
+    }
     if (mc->L != NULL) {
         free(mc->L);
     }
@@ -193,37 +196,46 @@ void musig2_context_sig_free(musig2_context_sig *mcs) {
     musig2_context_free(&mcs->mc);
 }
 
-int musig2_pubkey_from_keypair_serialize(secp256k1_context *ctx, secp256k1_keypair *keypair, unsigned char *serialized_pubkey){
+int musig2_pubkey_from_keypair_serialize(secp256k1_keypair *keypair, unsigned char *serialized_pubkey){
     secp256k1_pubkey temp_pk;
     size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
+    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
 
-    if (!secp256k1_keypair_pub(ctx, &temp_pk, keypair))
+    if (!secp256k1_keypair_pub(ctx, &temp_pk, keypair)) {
+        secp256k1_context_destroy(ctx);
         return 0;
+    }
 
     secp256k1_ec_pubkey_serialize(ctx, serialized_pubkey, &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
+    secp256k1_context_destroy(ctx);
+
     return 1;
 }
 
 /**** Signer ****/
-int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages) {
+int musig2_init_signer(musig2_context_sig *mcs, int nr_messages) {
 
     /* Initialize the secp256k1_context to operate on secp256k1 curve.
      * MuSig2 library generates a multi-signature in the form of the schnorr signature obtained by secp256k1_schnorrsig_sign32
      * with the library functions of libsecp256k1, however we do not use secp256k1_schnorrsig_sign32 function.
      * Thus, we create the context with only SECP256K1_CONTEXT_VERIFY flag instead of using
      * SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY. */
-    ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
-    mcs->mc.ctx = ctx;
+//    ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+    mcs->mc.ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     mcs->state = 0;
     mcs->mc.nr_messages = nr_messages;
 
     /* Generate a key pair for given signer */
-    if (!musig2_key_gen(mcs))
+    if (!musig2_key_gen(mcs)) {
+        musig2_context_sig_free(mcs);
         return 0;
+    }
 
     /* Generate the batch commitments for given signer */
-    if (!musig2_batch_commitment(mcs))
+    if (!musig2_batch_commitment(mcs)) {
+        musig2_context_sig_free(mcs);
         return 0;
+    }
 
     return 1;
 }
@@ -364,12 +376,14 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
 }
 
 /**** Aggregator ****/
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures) {
+int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *signature, int nr_signatures) {
     int i;
+    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
 
     /* Check whether all aggregated R are equal */
     for (i = 1; i < nr_signatures; i++) {
         if (secp256k1_xonly_pubkey_cmp(ctx, &mps[i].R, &mps[i - 1].R) != 0){
+            secp256k1_context_destroy(ctx);
             return -1 ;
         }
     }
@@ -380,28 +394,32 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatur
     /* Aggregate the partial signatures */
     memcpy(signature + MUSIG2_PUBKEY_BYTES, mps[0].sig, MUSIG2_SCALAR_BYTES);
     for (i = 1; i < nr_signatures; i++) {
-        if (!secp256k1_ec_seckey_tweak_add(ctx, signature + MUSIG2_PUBKEY_BYTES, mps[i].sig))
+        if (!secp256k1_ec_seckey_tweak_add(ctx, signature + MUSIG2_PUBKEY_BYTES, mps[i].sig)) {
+            secp256k1_context_destroy(ctx);
             return 0;
+        }
 
     }
+    secp256k1_context_destroy(ctx);
 
     return 1;
 }
 
-void musig2_prepare_verifier(secp256k1_context *ctx, musig2_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers) {
+void musig2_prepare_verifier(musig2_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers) {
     musig2_context verifier_context;
     verifier_context.aggr_R_list = NULL;
     verifier_context.nr_signers = nr_signers;
     secp256k1_pubkey pk_list[nr_signers];
+    verifier_context.ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
 
     int i;
     for (i = 0; i < nr_signers; i++)
-        assert(secp256k1_ec_pubkey_parse(ctx, &pk_list[i], &serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], MUSIG2_PUBKEY_BYTES_COMPRESSED));
+        assert(secp256k1_ec_pubkey_parse(verifier_context.ctx, &pk_list[i], &serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], MUSIG2_PUBKEY_BYTES_COMPRESSED));
 
     musig2_aggregate_pubkey(&verifier_context, pk_list);
 
     /* Get the xonly public key */
-    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, aggr_pk, NULL, &verifier_context.aggr_pk));
+    assert(secp256k1_xonly_pubkey_from_pubkey(verifier_context.ctx, aggr_pk, NULL, &verifier_context.aggr_pk));
 
     musig2_context_free(&verifier_context);
 }

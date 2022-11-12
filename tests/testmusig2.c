@@ -14,7 +14,7 @@ int init_musig2(secp256k1_context *ctx, unsigned char *serialized_pk_list, unsig
     /**** Initialization ****/
     for (i = 0; i < nr_participants; i++) {
         /* Generate a keypair for the signer and get batch commitments. */
-        err = musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES);
+        err = musig2_init_signer(&mcs_list[i], NR_MESSAGES);
         if (err != 1) {
             return err;
         }

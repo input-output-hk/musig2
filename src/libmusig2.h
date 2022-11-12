@@ -81,7 +81,7 @@ void musig2_context_sig_free(musig2_context_sig *mcs);
  *                          : nr_messages: The number of messages.
  * Returns      : 1/0.
  * */
-int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages);
+int musig2_init_signer(musig2_context_sig *mcs, int nr_messages);
 
 /** Function    : musig2_aggregate_pubkey
  *  Purpose     : Aggregates the given list of public keys.
@@ -123,7 +123,7 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
  *                          : nr_signatures: The number of signatures.
  * Returns      : 1/0.
  * */
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
+int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
 
 /** Function    : musig2_prepare_verifier
  *  Purpose     : Prepares verification for schnorr verifier function. Aggregates the public key and serialises
@@ -133,7 +133,7 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatur
  *                          : pk_list: list of public keys from all signers
  *                          : nr_signers: the total number of signers/keys submitted.
  */
-void musig2_prepare_verifier(secp256k1_context *ctx, musig2_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
+void musig2_prepare_verifier(musig2_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
 
 
 /** Function    : musig2_signer_precomputation
@@ -158,4 +158,4 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
  *                          : keypair: secp256k1_keypair object.
  *  Returns     : 1/0.
  */
-int musig2_pubkey_from_keypair_serialize(secp256k1_context *ctx, secp256k1_keypair *keypair, unsigned char *serialized_pubkey);
+int musig2_pubkey_from_keypair_serialize(secp256k1_keypair *keypair, unsigned char *serialized_pubkey);

@@ -25,7 +25,7 @@ TEST (musig2, valid_signature) {
     ASSERT_EQ(err, 1);
 
     // Aggregate partial signatures for `NR_SIGNERS`..
-    err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = musig2_ver_musig(ctx, signature, mcs_list[0].mc.aggr_pk, MSG_1, MSG_1_LEN);
@@ -56,7 +56,7 @@ TEST (musig2, not_enough_signatures) {
     ASSERT_EQ(err, 1);
 
     // Aggregate partial signatures for `NR_SIGNERS`..
-    err = musig2_aggregate_partial_sig(ctx, mps, signature, less_signers);
+    err = musig2_aggregate_partial_sig(mps, signature, less_signers);
     ASSERT_EQ(err, 1);
 
     err = musig2_ver_musig(ctx, signature, mcs_list[0].mc.aggr_pk, MSG_1, MSG_1_LEN);
@@ -87,7 +87,7 @@ TEST (musig2, non_corresponding_signers) {
     ASSERT_EQ(err, 1);
 
     // Aggregate partial signatures for ``mcs_list[0], ..., mcs_list[NR_SIGNERS - 1]`.
-    err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Verify the aggregated signature with secp256k1_schnorrsig_verify
@@ -126,7 +126,7 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
     assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &mps[0].R, NULL, &tmp));
 
     // Aggregation of partial signatures should fail since one of the signatures have incorrect aggregated commitment of nonce.
-    err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, -1);
 
     // Verify the aggregated signature with secp256k1_schnorrsig_verify
@@ -161,7 +161,7 @@ TEST (musig2, previous_state) {
     err = sign_partial(mcs_list, mps1, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_aggregate_partial_sig(ctx, mps1, signature1, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps1, signature1, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = musig2_ver_musig(ctx, signature1, mcs_list[0].mc.aggr_pk, MSG_1, MSG_1_LEN);
@@ -185,7 +185,7 @@ TEST (musig2, previous_state) {
     }
 
     // Aggregation should fail.
-    err = musig2_aggregate_partial_sig(ctx, mps2, signature2, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps2, signature2, NR_SIGNERS);
     ASSERT_EQ(err, -1);
 
     // Verification should fail.
@@ -216,7 +216,7 @@ TEST (musig2, future_state) {
     err = sign_partial(mcs_list, mps, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, -1);
 
     // Verification should fail since one of the signers' signature used a future state.
@@ -246,7 +246,7 @@ TEST (musig2, invalid_signer_key) {
     err = sign_partial(mcs_list, mps, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Verification should fail since one of the signers' key is incorrect.
@@ -277,7 +277,7 @@ TEST (musig2, invalid_single_signature) {
     // Flip a bit of a single signature.
     mps[0].sig[0] ^= 1;
 
-    err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Verification should fail since one of the single signatures is incorrect.
@@ -307,7 +307,7 @@ TEST (musig2, aggregate_invalid_public_key) {
     err = sign_partial(mcs_list, mps, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_aggregate_partial_sig(ctx, mps, signature, NR_SIGNERS);
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Verification should fail since one of the signers' public key is incorrect.

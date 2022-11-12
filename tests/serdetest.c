@@ -37,7 +37,7 @@ TEST (musig2, commitments_serialize_deserialize) {
 
     int j, k, l, ind;
     for (i = 0; i < NR_SIGNERS; i++) {
-        if (musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES)) {
+        if (musig2_init_signer(&mcs_list[i], NR_MESSAGES)) {
 // Store the public key of the signer in pk_list
             assert (secp256k1_keypair_pub(ctx, &pk_list[i], &mcs_list[i].keypair));
 

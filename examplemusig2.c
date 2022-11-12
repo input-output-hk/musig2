@@ -5,7 +5,6 @@
 
 int main(void) {
 
-    secp256k1_context *ctx = NULL;
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
 
     musig2_partial_signature mps1[NR_SIGNERS];
@@ -36,20 +35,20 @@ int main(void) {
     /**** Initialization ****/
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate a keypair for the signer and get batch commitments. */
-        if (musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES))
+        if (musig2_init_signer(&mcs_list[i], NR_MESSAGES))
             printf("* Signer %d initialized.\n", i + 1);
         else
             printf("* Failed to initialize Signer %d.\n", i + 1);
 
         /* Store the public key of the signer in pk_list */
-        assert(musig2_pubkey_from_keypair_serialize(ctx, &mcs_list[i].keypair, &serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED]));
+        assert(musig2_pubkey_from_keypair_serialize(&mcs_list[i].keypair, &serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED]));
 
         /* Store the batch commitments of the signer in serialized batch_list */
         l = 0; // the index of the signer's commitment list.
         for (k = 0; k < NR_MESSAGES; k++) {
             for (j = 0; j < V; j++, l++) {
                 ind = (k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED;
-                assert(musig2_pubkey_from_keypair_serialize(ctx, mcs_list[i].comm_list[l], &serialized_batch_list[ind]));
+                assert(musig2_pubkey_from_keypair_serialize(mcs_list[i].comm_list[l], &serialized_batch_list[ind]));
             }
         }
     }
@@ -63,6 +62,7 @@ int main(void) {
         }
     }
 
+    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
 
 
     printf("**** STATE 1 ************************************************************** \n");
@@ -88,7 +88,7 @@ int main(void) {
     printf("\n* Aggregate signature: \n");
 
 
-    if (musig2_aggregate_partial_sig(ctx, mps1, signature1, NR_SIGNERS)){
+    if (musig2_aggregate_partial_sig(mps1, signature1, NR_SIGNERS)){
         printf(" S: ");
         print_hex(&signature1[MUSIG2_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
         printf(" R: ");
@@ -99,12 +99,13 @@ int main(void) {
         for (k = 0; k < NR_SIGNERS; k++) {
             musig2_context_sig_free(&mcs_list[k]);
         }
+        free(aggr_pk.data);
         return -1;
     }
 
     /**** Verification ****/
 
-    musig2_prepare_verifier(ctx, &aggr_pk, serialized_pk_list, NR_SIGNERS);
+    musig2_prepare_verifier(&aggr_pk, serialized_pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
     if (secp256k1_schnorrsig_verify(ctx, signature1, MSG_1, MSG_1_LEN, &aggr_pk))
         printf("\n* Musig2 is VALID!\n");
@@ -131,6 +132,7 @@ int main(void) {
             for (k = i; k < NR_SIGNERS; k++) {
                 musig2_context_sig_free(&mcs_list[k]);
             }
+            free(aggr_pk_2.data);
             return -1;
         }
     }
@@ -140,7 +142,7 @@ int main(void) {
     printf("\n* Aggregate signature: \n");
 
 
-    if (musig2_aggregate_partial_sig(ctx, mps2, signature2, NR_SIGNERS)){
+    if (musig2_aggregate_partial_sig(mps2, signature2, NR_SIGNERS)){
         printf(" S: ");
         print_hex(&signature2[MUSIG2_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
         printf(" R: ");
@@ -157,7 +159,7 @@ int main(void) {
     // the verifier from round 2 might be different to that of round 1, and
     // therefore the key needs to be recomputed.
 
-    musig2_prepare_verifier(ctx, &aggr_pk_2, serialized_pk_list, NR_SIGNERS);
+    musig2_prepare_verifier(    &aggr_pk_2, serialized_pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
     if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &aggr_pk_2))
         printf("\n* Musig2 is VALID!\n");
@@ -165,8 +167,6 @@ int main(void) {
         printf("\n* Failed to verify Musig2!\n");
     printf("--------------------------------------------------------------------------- \n");
 
-
-    /**** Destroy the context ****/
     secp256k1_context_destroy(ctx);
 
     return 0;
