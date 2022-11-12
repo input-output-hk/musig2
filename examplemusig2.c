@@ -5,7 +5,7 @@
 
 int main(void) {
 
-    unsigned char randomize[SCALAR_BYTES];
+    unsigned char randomize[MUSIG2_SCALAR_BYTES];
     int return_val;
 
     /* Initialize the secp256k1_context to operate on secp256k1 curve.
@@ -23,6 +23,19 @@ int main(void) {
     return_val = secp256k1_context_randomize(ctx, randomize);
     assert(return_val);
 
+    musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
+
+    musig2_partial_signature mps1[NR_SIGNERS];
+    musig2_partial_signature mps2[NR_SIGNERS];
+
+    unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
+
+    unsigned char signature1[MUSIG2_BYTES];
+    unsigned char signature2[MUSIG2_BYTES];
+
+    int i, j, k, l, ind;
+
     printf("--------------------------------------------------------------------------- \n");
     printf("----------------------------- MuSig2 started ------------------------------ \n");
     printf("--------------------------------------------------------------------------- \n");
@@ -31,14 +44,8 @@ int main(void) {
     printf("* Number of messages\t\t: %d \n", NR_MESSAGES);
     printf("--------------------------------------------------------------------------- \n");
 
-    /**** musig2test parameters ****/
-    int i, j, k, l, ind;
-    unsigned char serialized_pk_list[NR_SIGNERS * SER_PK_BYTES_COMPRESSED];    // Signers' public key list
-    musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
-    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES_COMPRESSED];
     secp256k1_pubkey temp_pk;
-
-    size_t ser_size = SER_PK_BYTES_COMPRESSED;
+    size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
     /**** Initialization ****/
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate a keypair for the signer and get batch commitments. */
@@ -49,13 +56,13 @@ int main(void) {
 
         /* Store the public key of the signer in pk_list */
         assert (secp256k1_keypair_pub(ctx, &temp_pk, &mcs_list[i].keypair));
-        secp256k1_ec_pubkey_serialize(ctx, &serialized_pk_list[i * SER_PK_BYTES_COMPRESSED], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
+        secp256k1_ec_pubkey_serialize(ctx, &serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
 
         /* Store the batch commitments of the signer in serialized batch_list */
         l = 0; // the index of the signer's commitment list.
         for (k = 0; k < NR_MESSAGES; k++) {
             for (j = 0; j < V; j++, l++) {
-                ind = (k * NR_SIGNERS * V + i * V + j) * SER_PK_BYTES_COMPRESSED;
+                ind = (k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED;
                 assert(secp256k1_keypair_pub(ctx, &temp_pk, mcs_list[i].comm_list[l]));
                 secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
             }
@@ -77,13 +84,12 @@ int main(void) {
     /**** Signature ****/
     printf("\n* Partial Signatures: \n");
 
-    musig2_partial_signature mps1[NR_SIGNERS];
 
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate the partial signatures */
         if (musig2_sign(&mcs_list[i], &mps1[i], MSG_1, MSG_1_LEN)){
             printf(" S%d: ", i + 1);
-            print_hex(mps1[i].sig, SCALAR_BYTES);
+            print_hex(mps1[i].sig, MUSIG2_SCALAR_BYTES);
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
@@ -96,13 +102,12 @@ int main(void) {
     /**** Aggregation ****/
     printf("\n* Aggregate signature: \n");
 
-    unsigned char signature1[SCH_SIG_BYTES];
 
     if (musig2_aggregate_partial_sig(ctx, mps1, signature1, NR_SIGNERS)){
         printf(" S: ");
-        print_hex(&signature1[XONLY_BYTES], SCALAR_BYTES);
+        print_hex(&signature1[MUSIG2_PUBKEY_BYTES], MUSIG2_SCALAR_BYTES);
         printf(" R: ");
-        print_hex(signature1, XONLY_BYTES);
+        print_hex(signature1, MUSIG2_PUBKEY_BYTES);
     }
     else {
         printf("* Failed to aggregate signatures.\n");
@@ -129,13 +134,11 @@ int main(void) {
     /**** Signature ****/
     printf("\n* Partial Signatures: \n");
 
-    musig2_partial_signature mps2[NR_SIGNERS];
-
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate the partial signatures */
         if (musig2_sign(&mcs_list[i], &mps2[i], MSG_2, MSG_2_LEN)){
             printf(" S%d: ", i + 1);
-            print_hex(mps2[i].sig, SCALAR_BYTES);
+            print_hex(mps2[i].sig, MUSIG2_SCALAR_BYTES);
             musig2_context_sig_free(&mcs_list[i]);
         }
         else {
@@ -151,13 +154,12 @@ int main(void) {
     /**** Aggregation ****/
     printf("\n* Aggregate signature: \n");
 
-    unsigned char signature2[SCH_SIG_BYTES];
 
     if (musig2_aggregate_partial_sig(ctx, mps2, signature2, NR_SIGNERS)){
         printf(" S: ");
-        print_hex(&signature2[XONLY_BYTES], SCALAR_BYTES);
+        print_hex(&signature2[MUSIG2_PUBKEY_BYTES], MUSIG2_SCALAR_BYTES);
         printf(" R: ");
-        print_hex(signature2, XONLY_BYTES);
+        print_hex(signature2, MUSIG2_PUBKEY_BYTES);
     }
     else {
         printf("* Failed to aggregate signatures.\n");
