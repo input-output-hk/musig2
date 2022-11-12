@@ -150,12 +150,4 @@ void musig2_prepare_verifier(musig2_pubkey *aggr_pk, unsigned char *serialized_p
  */
 int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
 
-/** Function    : musig2_pubkey_from_keypair_serialize
- *  Purpose     : Extracts the secp256k1_pubkey from secp256k1_keypair, outputs 33-byte serialized pubkey in compressed format.
- *                If given keypair is invalid, returns 0, 1 otherwise.
- *  Parameters  : IN/OUT    : serialized_pubkey: 33-byte serialized pubkey.
- *              : IN        : ctx: secp256k1_context object.
- *                          : keypair: secp256k1_keypair object.
- *  Returns     : 1/0.
- */
-int musig2_pubkey_from_keypair_serialize(secp256k1_keypair *keypair, unsigned char *serialized_pubkey);
+int musig2_prepare_signer_to_register(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);

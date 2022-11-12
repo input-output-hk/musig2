@@ -196,18 +196,26 @@ void musig2_context_sig_free(musig2_context_sig *mcs) {
     musig2_context_free(&mcs->mc);
 }
 
-int musig2_pubkey_from_keypair_serialize(secp256k1_keypair *keypair, unsigned char *serialized_pubkey){
+int musig2_prepare_signer_to_register(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]){
     secp256k1_pubkey temp_pk;
     size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+    int i;
 
-    if (!secp256k1_keypair_pub(ctx, &temp_pk, keypair)) {
-        secp256k1_context_destroy(ctx);
+    if (secp256k1_keypair_pub(mcs->mc.ctx, &temp_pk, &mcs->keypair))
+        secp256k1_ec_pubkey_serialize(mcs->mc.ctx, serialized_pubkey, &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
+    else {
+        musig2_context_sig_free(mcs);
         return 0;
     }
 
-    secp256k1_ec_pubkey_serialize(ctx, serialized_pubkey, &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
-    secp256k1_context_destroy(ctx);
+    for (i = 0; i < mcs->mc.nr_messages * V; i++) {
+        if (secp256k1_keypair_pub(mcs->mc.ctx, &temp_pk, mcs->comm_list[i]))
+            secp256k1_ec_pubkey_serialize(mcs->mc.ctx, serialized_batch_list[i], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
+        else {
+            musig2_context_sig_free(mcs);
+            return 0;
+        }
+    }
 
     return 1;
 }
