@@ -1,4 +1,3 @@
-#include <gtest/gtest.h>
 extern "C" {
 
 
@@ -7,11 +6,11 @@ TEST (musig2, pk_list_serialize_deserialize) {
     int i, err;
     size_t ser_size = 33; // Size of the compressed ec pubkey of secp256k1.
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
-    unsigned char serialized_pk_list[NR_SIGNERS * SER_PK_BYTES_COMPRESSED];    // Signers' public key list
+    unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
     secp256k1_pubkey serde_pk_list[NR_SIGNERS];
-    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * SER_PK_BYTES_COMPRESSED];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
     err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
