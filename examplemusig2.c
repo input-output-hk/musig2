@@ -2,7 +2,6 @@
 #include "tests/config.h"
 
 
-
 int main(void) {
 
     unsigned char randomize[MUSIG2_SCALAR_BYTES];
@@ -28,12 +27,17 @@ int main(void) {
     musig2_partial_signature mps1[NR_SIGNERS];
     musig2_partial_signature mps2[NR_SIGNERS];
 
-    unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+    unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED ];    // Signers' public key list
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-
     unsigned char signature1[MUSIG2_BYTES];
     unsigned char signature2[MUSIG2_BYTES];
 
+    secp256k1_xonly_pubkey aggr_pk_1;
+    secp256k1_xonly_pubkey aggr_pk_2;
+    secp256k1_pubkey temp_pk;
+
+    MUSIG2_API res;
+    size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
     int i, j, k, l, ind;
 
     printf("--------------------------------------------------------------------------- \n");
@@ -42,17 +46,15 @@ int main(void) {
     printf("* Number of signers\t\t: %d\n", NR_SIGNERS);
     printf("* Number of nonces\t\t: %d \n", V);
     printf("* Number of messages\t\t: %d \n", NR_MESSAGES);
-    printf("--------------------------------------------------------------------------- \n");
+    printf("--------------------------------------------------------------------------- \n\n");
 
-    secp256k1_pubkey temp_pk;
-    size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
+
     /**** Initialization ****/
+    printf("\n______ Initialize Signers _________________________________________________ \n");
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate a keypair for the signer and get batch commitments. */
-        if (musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES))
-            printf("* Signer %d initialized.\n", i + 1);
-        else
-            printf("* Failed to initialize Signer %d.\n", i + 1);
+        res = musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES);
+        printf("  Signer %d: %s", i + 1, musig2_error_str(res));
 
         /* Store the public key of the signer in pk_list */
         assert (secp256k1_keypair_pub(ctx, &temp_pk, &mcs_list[i].keypair));
@@ -68,119 +70,110 @@ int main(void) {
             }
         }
     }
-    printf("--------------------------------------------------------------------------- \n\n");
 
     /**** Aggregate the public keys and batch commitments for each signer for all messages ****/
+    printf("\n______ Precomputation _____________________________________________________ \n");
     for (i = 0; i < NR_SIGNERS; i++) {
-        if (!musig2_signer_precomputation(&mcs_list[i].mc, serialized_pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES)) {
+        res = musig2_signer_precomputation(&mcs_list[i].mc, serialized_pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES);
+        printf("  Signer %d: %s", i + 1, musig2_error_str(res));
+        if (res != MUSIG2_OK) {
             musig2_context_sig_free(&mcs_list[k]);
             return -1;
         }
     }
+    printf("--------------------------------------------------------------------------- \n\n");
 
 
-
-    printf("**** STATE 1 ************************************************************** \n");
+    /************** STATE 1 **************/
     /**** Signature ****/
-    printf("\n* Partial Signatures: \n");
-
-
+    printf("\nState 1: Partial Signatures _______________________________________________ \n");
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate the partial signatures */
-        if (musig2_sign(&mcs_list[i], &mps1[i], MSG_1, MSG_1_LEN)){
-            printf(" S%d: ", i + 1);
-            print_hex(mps1[i].sig, MUSIG2_SCALAR_BYTES);
-        }
-        else {
-            printf("* Failed to generate signature for Signer %d.\n", i + 1);
+        res = musig2_sign(&mcs_list[i], &mps1[i], MSG_1, MSG_1_LEN);
+        printf("  Signer %d: %s", i + 1, musig2_error_str(res));
+        if (res != MUSIG2_OK){
             musig2_context_sig_free(&mcs_list[k]);
             return -1;
         }
     }
 
-
     /**** Aggregation ****/
-    printf("\n* Aggregate signature: \n");
-
-
-    if (musig2_aggregate_partial_sig(ctx, mps1, signature1, NR_SIGNERS)){
-        printf(" S: ");
+    printf("\nState 1: Aggregate ________________________________________________________ \n");
+    res = musig2_aggregate_partial_sig(ctx, mps1, signature1, NR_SIGNERS);
+    printf("  Signature %s", musig2_error_str(res));
+    if (res == MUSIG2_OK){
+        printf("  S .... ");
         print_hex(&signature1[MUSIG2_PUBKEY_BYTES], MUSIG2_SCALAR_BYTES);
-        printf(" R: ");
+        printf("  R .... ");
         print_hex(signature1, MUSIG2_PUBKEY_BYTES);
     }
     else {
-        printf("* Failed to aggregate signatures.\n");
-        for (k = 0; k < NR_SIGNERS; k++) {
+        for (k = 0; k < NR_SIGNERS; k++)
             musig2_context_sig_free(&mcs_list[k]);
-        }
         return -1;
     }
 
     /**** Verification ****/
-    secp256k1_xonly_pubkey aggr_pk;
-
-    musig2_prepare_verifier(ctx, &aggr_pk, serialized_pk_list, NR_SIGNERS);
-    /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (secp256k1_schnorrsig_verify(ctx, signature1, MSG_1, MSG_1_LEN, &aggr_pk))
-        printf("\n* Musig2 is VALID!\n");
-    else
-        printf("\n* Failed to verify Musig2!\n");
+    printf("\nState 1: Verification _____________________________________________________ \n");
+    res = musig2_prepare_verifier(ctx, &aggr_pk_1, serialized_pk_list, NR_SIGNERS);
+    printf("  Prepare   %s", musig2_error_str(res));
+    if (res == MUSIG2_OK) {
+        /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
+        if (secp256k1_schnorrsig_verify(ctx, signature1, MSG_1, MSG_1_LEN, &aggr_pk_1))
+            printf("  Musig2 is VALID!\n");
+        else
+            printf("  Failed to verify Musig2!\n");
+    }
+    else {
+        return -1;
+    }
     printf("--------------------------------------------------------------------------- \n\n");
 
 
-
-    printf("**** STATE 2 ************************************************************** \n");
+    /************** STATE 2 **************/
     /**** Signature ****/
-    printf("\n* Partial Signatures: \n");
-
+    printf("\nState 2: Partial Signatures _______________________________________________ \n");
     for (i = 0; i < NR_SIGNERS; i++) {
         /* Generate the partial signatures */
-        if (musig2_sign(&mcs_list[i], &mps2[i], MSG_2, MSG_2_LEN)){
-            printf(" S%d: ", i + 1);
-            print_hex(mps2[i].sig, MUSIG2_SCALAR_BYTES);
-            musig2_context_sig_free(&mcs_list[i]);
-        }
-        else {
-            printf("* Failed to generate signature for Signer %d.\n", i + 1);
-            for (k = i; k < NR_SIGNERS; k++) {
-                musig2_context_sig_free(&mcs_list[k]);
-            }
+        res = musig2_sign(&mcs_list[i], &mps2[i], MSG_2, MSG_2_LEN);
+        printf("  Signer %d: %s", i + 1, musig2_error_str(res));
+        if (res != MUSIG2_OK){
+            musig2_context_sig_free(&mcs_list[k]);
             return -1;
         }
     }
 
-
     /**** Aggregation ****/
-    printf("\n* Aggregate signature: \n");
-
-
-    if (musig2_aggregate_partial_sig(ctx, mps2, signature2, NR_SIGNERS)){
-        printf(" S: ");
+    printf("\nState 2: Aggregate ________________________________________________________ \n");
+    res = musig2_aggregate_partial_sig(ctx, mps2, signature2, NR_SIGNERS);
+    printf("  Signature %s", musig2_error_str(res));
+    if (res == MUSIG2_OK){
+        printf("  S .... ");
         print_hex(&signature2[MUSIG2_PUBKEY_BYTES], MUSIG2_SCALAR_BYTES);
-        printf(" R: ");
+        printf("  R .... ");
         print_hex(signature2, MUSIG2_PUBKEY_BYTES);
     }
     else {
-        printf("* Failed to aggregate signatures.\n");
+        for (k = 0; k < NR_SIGNERS; k++)
+            musig2_context_sig_free(&mcs_list[k]);
         return -1;
     }
 
-
     /**** Verification ****/
-    // We could, in principle use `aggr_pk`, but we are just showcasing that
-    // the verifier from round 2 might be different to that of round 1, and
-    // therefore the key needs to be recomputed.
-    secp256k1_xonly_pubkey aggr_pk_2;
-
-    musig2_prepare_verifier(ctx, &aggr_pk_2, serialized_pk_list, NR_SIGNERS);
-    /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &aggr_pk_2)) {
-        printf("\n* Musig2 is VALID!\n");
+    printf("\nState 2: Verification _____________________________________________________ \n");
+    res = musig2_prepare_verifier(ctx, &aggr_pk_2, serialized_pk_list, NR_SIGNERS);
+    printf("  Prepare   %s", musig2_error_str(res));
+    if (res == MUSIG2_OK) {
+        /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
+        if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &aggr_pk_2))
+            printf("  Musig2 is VALID!\n");
+        else
+            printf("  Failed to verify Musig2!\n");
     }
-    else
-        printf("\n* Failed to verify Musig2!\n");
-    printf("--------------------------------------------------------------------------- \n");
+    else {
+        return -1;
+    }
+    printf("--------------------------------------------------------------------------- \n\n");
 
 
     /**** Destroy the context ****/

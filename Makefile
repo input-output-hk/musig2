@@ -10,10 +10,11 @@ LDLIBS = -lsecp256k1
 GTEST_LDLIBS = $(LDLIBS) -lstdc++ -lgtest -lgtest_main
 INCLUDES = src/libmusig2.h src/random.h
 
+
 AR=ar rcs
 RANLIB=ranlib
 
-all: test example lib_musig2
+all: test example
 
 
 build/musig2.o: src/libmusig2.c $(INCLUDES)
@@ -28,6 +29,8 @@ test: lib_musig2
 	rm -rf test_run
 	mkdir test_run
 	$(CC) $(CPPFLAGS) $(GTEST_LDLIBS) tests/testmusig2.c -L./build -lmusig2 -o test_run/test
+	rm build/musig2.o
+
 
 example: lib_musig2
 	rm -rf example_run

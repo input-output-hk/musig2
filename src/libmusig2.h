@@ -8,7 +8,6 @@
 #include <secp256k1_schnorrsig.h>
 #include "random.h"
 
-
 #define V                                   2           // Number of nonce values
 #define MUSIG2_SCALAR_BYTES                 32          // SCALAR BYTES
 #define MUSIG2_PARSIG_BYTES                 32          // PARTIAL SIGNATURE BYTES
@@ -16,6 +15,19 @@
 #define MUSIG2_PUBKEY_BYTES_COMPRESSED      33          // COMPRESSED PUBLIC KEY BYTES
 #define MUSIG2_PUBKEY_BYTES_FULL            64          // FULL SIZE PUBLIC KEY BYTES
 #define MUSIG2_BYTES                        64          // SCHNORR SIGNATURE BYTES
+
+typedef enum musig2_api {
+    MUSIG2_OK = 0,
+    MUSIG2_ERR_KEY_GEN,
+    MUSIG2_ERR_BATCH_COMM,
+    MUSIG2_ERR_AGGR_R,
+    MUSIG2_ERR_AGGR_PK,
+    MUSIG2_ERR_CALC_R,
+    MUSIG2_ERR_SET_PARSIG,
+    MUSIG2_ERR_CHECK_COMM,
+    MUSIG2_ERR_ADD_PARSIG,
+    MUSIG2_ERR_CMP_R,
+} MUSIG2_API;
 
 
 /** Struct      : musig2_context
@@ -62,6 +74,8 @@ typedef struct{
     secp256k1_xonly_pubkey R;
 }musig2_partial_signature;
 
+const char* musig2_error_str(MUSIG2_API result);
+
 /*** Free memory allocated in MuSig2 context ***/
 void musig2_context_free(musig2_context *mc);
 
@@ -76,7 +90,7 @@ void musig2_context_sig_free(musig2_context_sig *mcs);
  *                          : nr_messages: The number of messages.
  * Returns      : 1/0.
  * */
-int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages);
+MUSIG2_API musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages);
 
 /** Function    : musig2_aggregate_pubkey
  *  Purpose     : Aggregates the given list of public keys.
@@ -105,7 +119,7 @@ int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V], int
  *                          : msg_len: The length of the message.
  * Returns      : 1/-1/0.
  * */
-int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const unsigned char *msg, int msg_len);
+MUSIG2_API musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const unsigned char *msg, int msg_len);
 
 /** Function    : musig2_aggregate_partial_sig
  *  Purpose     : Aggregates the given list of partial signatures. Sets the musig2 signature.
@@ -118,7 +132,7 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
  *                          : nr_signatures: The number of signatures.
  * Returns      : 1/0.
  * */
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
+MUSIG2_API musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
 
 /** Function    : musig2_prepare_verifier
  *  Purpose     : Prepares verification for schnorr verifier function. Aggregates the public key and serialises
@@ -128,8 +142,7 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatur
  *                          : pk_list: list of public keys from all signers
  *                          : nr_signers: the total number of signers/keys submitted.
  */
-int musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
-
+MUSIG2_API musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
 
 /** Function    : musig2_signer_precomputation
  *  Purpose     : Prepares the signer for partial signature generation for a batch of `nr_messages`.
@@ -143,4 +156,5 @@ int musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr
  *                          : nr_signers: the total number of signers/keys submitted.
  *                          : nr_messages: the number of messages to be signed.
  */
-int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
+MUSIG2_API musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
+

@@ -1,5 +1,24 @@
 #include "libmusig2.h"
 
+const char* const MUSIG2_STR[] = {
+        " ........................................................[DONE] \n",
+        " (key generation) .......................................[FAIL] \n",
+        " (batch commitment) .....................................[FAIL] \n",
+        " (aggregate R) ..........................................[FAIL] \n",
+        " (aggregate pubkey) .....................................[FAIL] \n",
+        " (calculate R) ..........................................[FAIL] \n",
+        " (set partial signature) ................................[FAIL] \n",
+        " (check commitments) ....................................[FAIL] \n",
+        " (combine partial signatures) ...........................[FAIL] \n",
+        " (compare R) ............................................[FAIL] \n",
+};
+const char* musig2_error_str(MUSIG2_API result)
+{
+    const char* err = MUSIG2_STR[result];
+
+    return err;
+}
+
 static int musig2_key_gen(musig2_context_sig *mcs) {
     unsigned char x[MUSIG2_SCALAR_BYTES];
 
@@ -121,7 +140,7 @@ static int musig2_calc_R(musig2_context *mc, secp256k1_xonly_pubkey *aggr_R, int
     return 1;
 }
 
-static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned char *c, unsigned char b_LIST[V][MUSIG2_SCALAR_BYTES], int *par_R, unsigned char *parsig) {
+static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned char *c, unsigned char b_LIST[V][MUSIG2_SCALAR_BYTES], int par_R, unsigned char *parsig) {
     int j;
     unsigned char temp_rb[MUSIG2_SCALAR_BYTES];
     unsigned char x[MUSIG2_SCALAR_BYTES];
@@ -141,7 +160,7 @@ static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned
     mcs->state++;
 
     // Condition where R is even and PK is odd. We negate the challenge
-    if (*par_R == 0 && mcs->mc.par_pk == 1){
+    if (par_R == 0 && mcs->mc.par_pk == 1){
         if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, c)){
             return 0;
         }
@@ -160,54 +179,11 @@ static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned
     }
 
     // The third condition, if both R and pk are odd, we negate the partial signature.
-    if (*par_R == 1 && mcs->mc.par_pk == 1){
+    if (par_R == 1 && mcs->mc.par_pk == 1){
         if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, parsig)){
             return 0;
         }
     }
-
-    return 1;
-}
-
-/*** Free memory allocated in MuSig2 context ***/
-void musig2_context_free(musig2_context *mc) {
-    if (mc->L != NULL) {
-        free(mc->L);
-    }
-    if (mc->aggr_R_list != NULL) {
-        for (int l = 0; l < V * mc->nr_messages; l++) {
-            if (mc->aggr_R_list != NULL){
-                free(mc->aggr_R_list[l]);
-            }
-        }
-        free(mc->aggr_R_list);
-    }
-}
-
-/*** Free memory allocated in MuSig2 Sig context ***/
-void musig2_context_sig_free(musig2_context_sig *mcs) {
-    for (int l = mcs->state * V; l < mcs->mc.nr_messages * V; l++) {
-        free(mcs->comm_list[l]);
-    }
-    free(mcs->comm_list);
-    musig2_context_free(&mcs->mc);
-}
-
-/**** Signer ****/
-int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages) {
-
-    mcs->mc.ctx = ctx;
-    mcs->state = 0;
-    mcs->mc.nr_messages = nr_messages;
-
-    /* Generate a key pair for given signer */
-    if (!musig2_key_gen(mcs))
-        return 0;
-
-    /* Generate the batch commitments for given signer */
-    if (!musig2_batch_commitment(mcs))
-        return 0;
-
     return 1;
 }
 
@@ -268,12 +244,53 @@ int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V], int
     return 1;
 }
 
-int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages){
+/*** Free memory allocated in MuSig2 context ***/
+void musig2_context_free(musig2_context *mc) {
+    if (mc->L != NULL) {
+        free(mc->L);
+    }
+    if (mc->aggr_R_list != NULL) {
+        for (int l = 0; l < V * mc->nr_messages; l++) {
+            if (mc->aggr_R_list != NULL){
+                free(mc->aggr_R_list[l]);
+            }
+        }
+        free(mc->aggr_R_list);
+    }
+}
+
+/*** Free memory allocated in MuSig2 Sig context ***/
+void musig2_context_sig_free(musig2_context_sig *mcs) {
+    for (int l = mcs->state * V; l < mcs->mc.nr_messages * V; l++) {
+        free(mcs->comm_list[l]);
+    }
+    free(mcs->comm_list);
+    musig2_context_free(&mcs->mc);
+}
+
+MUSIG2_API musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages) {
+
+    mcs->mc.ctx = ctx;
+    mcs->state = 0;
+    mcs->mc.nr_messages = nr_messages;
+
+    /* Generate a key pair for given signer */
+    if (!musig2_key_gen(mcs)) {
+        return MUSIG2_ERR_KEY_GEN;
+    }
+    if (!musig2_batch_commitment(mcs)){
+        return MUSIG2_ERR_BATCH_COMM;
+    }
+    return MUSIG2_OK;
+}
+
+MUSIG2_API musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages){
     int i, j, k, ind;
     mc->nr_signers = nr_signers;
     mc->aggr_R_list = malloc(sizeof (secp256k1_pubkey*) * nr_messages * V);
     secp256k1_pubkey batch_list[nr_messages][nr_signers][V];   // Stores the batches of signers
     secp256k1_pubkey pk_list[nr_signers];
+
 
     // Parse the batch commitments of the signers
     for (i = 0; i < nr_signers; i++) {
@@ -286,18 +303,19 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
         }
     }
 
+    if (!musig2_aggregate_pubkey(mc, pk_list)){
+        return MUSIG2_ERR_AGGR_PK;
+    }
     // Aggregate R for each message to be signed.
     for (k = 0; k < nr_messages; k++)
-        if (!musig2_aggregate_R(mc, batch_list[k], k))
-            return 0;
+        if (!musig2_aggregate_R(mc, batch_list[k], k)) {
+            return MUSIG2_ERR_AGGR_R;
+        }
 
-    if (!musig2_aggregate_pubkey(mc, pk_list))
-        return 0;
-
-    return 1;
+    return MUSIG2_OK;
 }
 
-int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const unsigned char *msg, int msg_len) {
+MUSIG2_API musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const unsigned char *msg, int msg_len) {
 
     unsigned char ser_aggr_pk[MUSIG2_PUBKEY_BYTES];
     unsigned char ser_aggr_R[MUSIG2_PUBKEY_BYTES];
@@ -309,11 +327,13 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
     secp256k1_xonly_pubkey xonly_temp;
     int par_R;
 
+
     int j;
     int index = V * mcs->state;
-    for (j = 0; j < V; j++)
-        if (mcs->comm_list[index + j] == NULL){
-        return -1;
+    for (j = 0; j < V; j++) {
+        if (mcs->comm_list[index + j] == NULL) {
+            return MUSIG2_ERR_CHECK_COMM;
+        }
     }
 
     assert(secp256k1_keypair_xonly_pub(mcs->mc.ctx, &xonly_temp, NULL, &mcs->keypair));
@@ -327,9 +347,9 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
 
     musig2_calc_b(&mcs->mc, ser_aggr_pk, b, msg, msg_len, mcs->state);
     /* Compute `R` */
-    if (!musig2_calc_R(&mcs->mc, (secp256k1_xonly_pubkey *) &mps->R, &par_R, b, b_LIST, mcs->state))
-        return 0;
-
+    if (!musig2_calc_R(&mcs->mc, (secp256k1_xonly_pubkey *) &mps->R, &par_R, b, b_LIST, mcs->state)){
+        return MUSIG2_ERR_CALC_R;
+    }
 
     secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_aggr_R, &mps->R);
 
@@ -339,21 +359,19 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
 
     assert(secp256k1_tagged_sha256(mcs->mc.ctx, c, (const unsigned char *)"BIP0340/challenge" , 17, bytes_to_hash, sizeof (bytes_to_hash)));
 
-    if (!musig2_set_parsig(mcs, a, c, b_LIST, &par_R, mps->sig))
-        return 0;
-
-
-    return 1;
+    if (!musig2_set_parsig(mcs, a, c, b_LIST, par_R, mps->sig)){
+        return MUSIG2_ERR_SET_PARSIG;
+    }
+    return MUSIG2_OK;
 }
 
-/**** Aggregator ****/
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures) {
+MUSIG2_API musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures) {
     int i;
 
     /* Check whether all aggregated R are equal */
     for (i = 1; i < nr_signatures; i++) {
         if (secp256k1_xonly_pubkey_cmp(ctx, &mps[i].R, &mps[i - 1].R) != 0){
-            return -1 ;
+            return MUSIG2_ERR_CMP_R ;
         }
     }
 
@@ -363,15 +381,14 @@ int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signatur
     /* Aggregate the partial signatures */
     memcpy(signature + MUSIG2_PUBKEY_BYTES, mps[0].sig, MUSIG2_SCALAR_BYTES);
     for (i = 1; i < nr_signatures; i++) {
-        if (!secp256k1_ec_seckey_tweak_add(ctx, signature + MUSIG2_PUBKEY_BYTES, mps[i].sig))
-            return 0;
-
+        if (!secp256k1_ec_seckey_tweak_add(ctx, signature + MUSIG2_PUBKEY_BYTES, mps[i].sig)){
+            return MUSIG2_ERR_ADD_PARSIG;
+        }
     }
-
-    return 1;
+    return MUSIG2_OK;
 }
 
-int musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers) {
+MUSIG2_API musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers) {
     musig2_context verifier_context;
     verifier_context.aggr_R_list = NULL;
     verifier_context.nr_signers = nr_signers;
@@ -383,11 +400,12 @@ int musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr
 
     if (!musig2_aggregate_pubkey(&verifier_context, pk_list)){
         musig2_context_free(&verifier_context);
-        return 0;
+        return MUSIG2_ERR_AGGR_PK;
     }
     /* Get the xonly public key */
     assert(secp256k1_xonly_pubkey_from_pubkey(ctx, aggr_pk, NULL, &verifier_context.aggr_pk));
 
     musig2_context_free(&verifier_context);
-    return 1;
+    return MUSIG2_OK;
 }
+

@@ -2,8 +2,8 @@
 extern "C" {
 #include "../src/libmusig2.h"
 #include "config.h"
-int init_musig2(secp256k1_context *ctx, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, musig2_context_sig *mcs_list,
-                int nr_participants) {
+
+int init_musig2(secp256k1_context *ctx, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, musig2_context_sig *mcs_list, int nr_participants) {
     int i, j, k, l;
     int ind;
     int err;
@@ -15,7 +15,7 @@ int init_musig2(secp256k1_context *ctx, unsigned char *serialized_pk_list, unsig
     for (i = 0; i < nr_participants; i++) {
         /* Generate a keypair for the signer and get batch commitments. */
         err = musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES);
-        if (err != 1) {
+        if (err != MUSIG2_OK) {
             return err;
         }
 
@@ -68,7 +68,7 @@ int sign_partial(musig2_context_sig *mcs_list, musig2_partial_signature *mps, in
 
 int musig2_ver_musig(secp256k1_context *ctx, const unsigned char *signature, secp256k1_pubkey aggr_pk , const unsigned char *msg, int msg_len ){
     secp256k1_xonly_pubkey xonly_aggr_pk;
-    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_aggr_pk, NULL, &aggr_pk)) ;
+    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_aggr_pk, nullptr, &aggr_pk)) ;
 
     return secp256k1_schnorrsig_verify(ctx, signature, msg, msg_len, & xonly_aggr_pk ) ;
 }
@@ -81,5 +81,3 @@ int main(int argc, char* argv[]){
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
-
-
