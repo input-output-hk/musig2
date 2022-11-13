@@ -8,15 +8,30 @@
 #include <secp256k1_schnorrsig.h>
 #include "random.h"
 
-
 #define V                                   2           // Number of nonce values
-
 #define MUSIG2_SCALAR_BYTES                 32          // size of a scalar
 #define MUSIG2_PARSIG_BYTES                 32          // size of the musig2 partial signature
 #define MUSIG2_AGGR_PUBKEY_BYTES            32          // size of the musig2 public key equivalent of secp256k1_xonly_pubkey
 #define MUSIG2_PUBKEY_BYTES_COMPRESSED      33          // size of compressed public key where one extra byte represents the sign.
 #define MUSIG2_PUBKEY_BYTES_FULL            64          // size of uncompressed public key with full x and y coordinates
 #define MUSIG2_BYTES                        64          // size of the musig2 signature including the aggregate R and aggregate signature
+
+typedef enum musig2_error {
+    MUSIG2_OK = 0,
+    MUSIG2_ERR_KEY_GEN,
+    MUSIG2_ERR_BATCH_COMM,
+    MUSIG2_ERR_AGGR_R,
+    MUSIG2_ERR_AGGR_PK,
+    MUSIG2_ERR_CALC_R,
+    MUSIG2_ERR_SET_PARSIG,
+    MUSIG2_ERR_CHECK_COMM,
+    MUSIG2_ERR_ADD_PARSIG,
+    MUSIG2_ERR_CMP_R,
+    MUSIG2_ERR_SER_PK,
+    MUSIG2_ERR_SER_COMM,
+    MUSIG2_INVALID,
+} MUSIG2_ERROR;
+
 
 
 /** MuSig2 public key as secp256k1_xonly_pubkey
@@ -74,7 +89,7 @@ typedef struct{
  *
  *  Generates the keypair and creates a list of batch commitments for all defined states.
  */
-int musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
+MUSIG2_ERROR musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
 
 /** Serialize the shareable content in compressed (33-byte) form.
  *
@@ -88,7 +103,7 @@ int musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
  *  Public key and the commitments are stored within keypair type in the struct, thus before serialization,
  *  public key content is extracted from keypair for both pubkey and commitments.
  * */
-int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
+MUSIG2_ERROR musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
 
 /** Signer precomputation before signing round.
  *
@@ -106,7 +121,7 @@ int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char
  *  serialized in compressed form (a public key is represented with 33 bytes in compressed form).
  *  Returns 1 if all public keys and all commitments aggregated successfully.
  * */
-int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_signers);
+MUSIG2_ERROR musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_signers);
 
 /** Generate partial signature.
  *
@@ -118,7 +133,7 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
  *          msg_len:        the length of the message.
  *  Out:    mps:            a musig2_context_signature object
  * */
-int musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const unsigned char *msg, int msg_len);
+MUSIG2_ERROR musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const unsigned char *msg, int msg_len);
 
 /** Aggregate the given list of partial signatures.
  *
@@ -128,7 +143,7 @@ int musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const
  *          nr_signatures:      the number of signatures.
  *  Out:    signature:          an aggregated signature
  * */
-int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *signature, int nr_signatures);
+MUSIG2_ERROR musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *signature, int nr_signatures);
 
 /** Prepare verifier.
  *
@@ -141,7 +156,7 @@ int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *s
  *  Prepares verification for schnorr verifier function. Aggregates the public key and serialises
  *  to the format accepted by schnorr_verify. Fails if public key aggregation is not succeeded.
  * */
-int musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned char *serialized_pubkey_list, int nr_signers);
+MUSIG2_ERROR musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned char *serialized_pubkey_list, int nr_signers);
 
 /** Verify given musig2 signature of given message with secp256k1_schnorrsig_verify.
  *
@@ -159,7 +174,7 @@ int musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned char *seri
  *  libsecp generates. Therefore, verification should be done with the inputs of schnorr verify function which
  *  are the signature, message, message length, and the public key.
  * */
-int musig2_verify(musig2_aggr_pubkey *aggr_pubkey, unsigned char *signature, const unsigned char *msg, int msg_len);
+MUSIG2_ERROR musig2_verify(musig2_aggr_pubkey *aggr_pubkey, unsigned char *signature, const unsigned char *msg, int msg_len);
 
 
 /** Free memory allocated in MuSig2 context
