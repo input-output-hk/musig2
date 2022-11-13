@@ -14,7 +14,7 @@ TEST (musig2, pk_list_serialize_deserialize) {
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
     err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
-    ASSERT_EQ(err, 1);
+    ASSERT_EQ(err, MUSIG2_OK);
 
     for (i = 0; i < NR_SIGNERS; i++)
         assert(secp256k1_ec_pubkey_parse(ctx, &serde_pk_list[i], &serialized_pk_list[i * ser_size], ser_size));
