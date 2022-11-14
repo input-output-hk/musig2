@@ -13,7 +13,7 @@ TEST (musig2, valid_signature) {
 
 
     // Init signers, store public keys, generate batch commitments for `NR_SIGNERS`.
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments.
@@ -44,7 +44,7 @@ TEST (musig2, not_enough_signatures) {
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
     // Init signers, store public keys, generate batch commitments for `NR_SIGNERS`.
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments.
@@ -75,7 +75,7 @@ TEST (musig2, non_corresponding_signers) {
     unsigned char serialized_batch_list[nr_participants * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
     // Init signers, store public keys, create batch commitments for `nr_participants`.
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, nr_participants);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, nr_participants);
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments for `mcs_list[1], ..., mcs_list[NR_SIGNERS]`.
@@ -110,7 +110,7 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
     // Init signers, store public keys, generate batch commitments for `NR_SIGNERS`.
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = aggregate_pk_batch(serialized_pk_list, serialized_batch_list, mcs_list);
@@ -152,7 +152,7 @@ TEST (musig2, previous_state) {
     /*** STATE = 0 ****************************************************************************************************/
     // Musig2 proceeds as it is supposed to do for the first state.
 
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = aggregate_pk_batch(serialized_pk_list, serialized_batch_list, mcs_list);
@@ -205,7 +205,7 @@ TEST (musig2, future_state) {
     unsigned char signature[MUSIG2_BYTES];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = aggregate_pk_batch(serialized_pk_list, serialized_batch_list, mcs_list);
@@ -235,7 +235,7 @@ TEST (musig2, invalid_signer_key) {
     unsigned char signature[MUSIG2_BYTES];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = aggregate_pk_batch(serialized_pk_list, serialized_batch_list, mcs_list);
@@ -265,7 +265,7 @@ TEST (musig2, invalid_single_signature) {
     unsigned char signature[MUSIG2_BYTES];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = aggregate_pk_batch(serialized_pk_list, serialized_batch_list, mcs_list);
@@ -296,7 +296,7 @@ TEST (musig2, aggregate_invalid_public_key) {
     unsigned char signature[MUSIG2_BYTES];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    err = init_musig2(serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Flip a bit of one of the signers' public key.
