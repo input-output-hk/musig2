@@ -1,67 +1,60 @@
 #include <gtest/gtest.h>
 extern "C" {
 
+    TEST (musig2, pk_list_serialize_deserialize) {
 
-TEST (musig2, pk_list_serialize_deserialize) {
+        int i, err;
+        size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED; // Size of the compressed ec pubkey of secp256k1.
 
-    int i, err;
-    size_t ser_size = 33; // Size of the compressed ec pubkey of secp256k1.
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
-    unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
-    musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
-    secp256k1_pubkey serde_pk_list[NR_SIGNERS];
-    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
+        secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+        musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
+        unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+        unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
+        unsigned char serde_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
 
-    err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
-    ASSERT_EQ(err, MUSIG2_OK);
+        secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
+        secp256k1_pubkey deser_pk_list[NR_SIGNERS];
 
-    for (i = 0; i < NR_SIGNERS; i++)
-        assert(secp256k1_ec_pubkey_parse(ctx, &serde_pk_list[i], &serialized_pk_list[i * ser_size], ser_size));
+        err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+        ASSERT_EQ(err, MUSIG2_OK);
 
-//    for (i = 0; i < NR_SIGNERS; i++){
-//        err = secp256k1_ec_pubkey_cmp(ctx, &pk_list[i], &serde_pk_list[i]);
-//        ASSERT_EQ(err, 0);
-//    }
-}
+        for (i = 0; i < NR_SIGNERS; i++)
+            ASSERT_EQ(secp256k1_ec_pubkey_parse(ctx, &deser_pk_list[i], &serialized_pk_list[i * ser_size], ser_size), 1);
 
-TEST (musig2, commitments_serialize_deserialize) {
+        for (i = 0; i < NR_SIGNERS; i++)
+            secp256k1_ec_pubkey_serialize(ctx, &serde_pk_list[i * ser_size], &ser_size, &deser_pk_list[i], SECP256K1_EC_COMPRESSED);
 
-    int i, err;
-    size_t ser_size = 33; // Size of the compressed ec pubkey of secp256k1.
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
-    secp256k1_pubkey pk_list[NR_SIGNERS];    // Signers' public key list
-    secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
-    musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
-    secp256k1_pubkey deserialized_batch_list[NR_SIGNERS];
-    unsigned char serialized_batch_list[NR_SIGNERS * NR_MESSAGES * ser_size * V];
+        for (i = 0; i < NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED; i++)
+            ASSERT_EQ(serde_pk_list[i], serialized_pk_list[i]);
 
-    int j, k, l, ind;
-    for (i = 0; i < NR_SIGNERS; i++) {
-        if (musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES)) {
-// Store the public key of the signer in pk_list
-            assert (secp256k1_keypair_pub(ctx, &pk_list[i], &mcs_list[i].keypair));
-
-// Store the batch commitments of the signer in batch_list
-            l = 0; // the index of the signer's commitment list.
-            for (k = 0; k < NR_MESSAGES; k++) {
-                for (j = 0; j < V; j++, l++) {
-                    ind = (NR_SIGNERS * V * k) + (j * NR_SIGNERS) + i; // the index for the list of collected batches.
-                    assert(secp256k1_keypair_pub(ctx, &batch_list[ind], mcs_list[i].comm_list[l]));
-// Serialize the commitments and store in serialized_batch_list.
-                    secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind * ser_size], &ser_size,
-                                                  &batch_list[ind], SECP256K1_EC_COMPRESSED);
-                }
-            }
-        }
     }
 
-    for (i = 0; i < NR_SIGNERS; i++)
-        assert(secp256k1_ec_pubkey_parse(ctx, &deserialized_batch_list[i], &serialized_batch_list[i * ser_size], ser_size));
+    TEST (musig2, commitments_serialize_deserialize) {
 
-    for (i = 0; i < NR_SIGNERS; i++) {
-        err = secp256k1_ec_pubkey_cmp(ctx, &batch_list[i], &deserialized_batch_list[i]);
-        ASSERT_EQ(err, 0);
+        int i, err;
+        size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED; // Size of the compressed ec pubkey of secp256k1.
+
+        secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+        musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
+        unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+        unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
+        unsigned char serde_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+
+        secp256k1_pubkey batch_list[NR_SIGNERS * V * NR_MESSAGES];   // Stores the batches of signers
+        secp256k1_pubkey deser_batch_list[NR_SIGNERS * V * NR_MESSAGES];
+
+        err = init_musig2(ctx, serialized_pk_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+        ASSERT_EQ(err, MUSIG2_OK);
+
+        for (i = 0; i < NR_SIGNERS * V * NR_MESSAGES; i++)
+            ASSERT_EQ(secp256k1_ec_pubkey_parse(ctx, &deser_batch_list[i], &serialized_batch_list[i * ser_size], ser_size), 1);
+
+        for (i = 0; i < NR_SIGNERS * V * NR_MESSAGES; i++)
+            secp256k1_ec_pubkey_serialize(ctx, &serde_batch_list[i * ser_size], &ser_size, &deser_batch_list[i], SECP256K1_EC_COMPRESSED);
+
+        for (i = 0; i < NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED; i++)
+            ASSERT_EQ(serde_batch_list[i], serialized_batch_list[i]);
+
     }
-}
+
 }
