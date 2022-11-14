@@ -430,3 +430,12 @@ void musig2_prepare_verifier(musig2_pubkey *aggr_pk, unsigned char *serialized_p
 
     musig2_context_free(&verifier_context);
 }
+
+int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_pubkey *aggr_pk){
+    int result;
+    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+    result = secp256k1_schnorrsig_verify(ctx, signature, msg, msg_len, aggr_pk);
+
+    secp256k1_context_destroy(ctx);
+    return result;
+}

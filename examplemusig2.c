@@ -7,17 +7,17 @@ int main(void) {
 
     musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
 
-    musig2_partial_signature mps1[NR_SIGNERS];
-    musig2_partial_signature mps2[NR_SIGNERS];
+    musig2_partial_signature mps1[NR_SIGNERS];  // Array of partial signatures for the first state
+    musig2_partial_signature mps2[NR_SIGNERS];  // Array of partial signatures for the second state
 
-    musig2_pubkey aggr_pk;
-    musig2_pubkey aggr_pk_2;
+    musig2_pubkey aggr_pk_1;    // Aggregate public key of the first state
+    musig2_pubkey aggr_pk_2;    // Aggregate public key of the second state
 
-    unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
-    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
+    unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Serialized public keys of signers
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED]; // Serialized batch commitments
 
-    unsigned char signature1[MUSIG2_BYTES];
-    unsigned char signature2[MUSIG2_BYTES];
+    unsigned char signature_1[MUSIG2_BYTES];    // Final signature for the first state
+    unsigned char signature_2[MUSIG2_BYTES];    // Final signature for the second state
 
     int i, j, k, l;
 
@@ -62,8 +62,6 @@ int main(void) {
         }
     }
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
-
 
     printf("**** STATE 1 ************************************************************** \n");
     /**** Signature ****/
@@ -88,26 +86,25 @@ int main(void) {
     printf("\n* Aggregate signature: \n");
 
 
-    if (musig2_aggregate_partial_sig(mps1, signature1, NR_SIGNERS)){
+    if (musig2_aggregate_partial_sig(mps1, signature_1, NR_SIGNERS)){
         printf(" S: ");
-        print_hex(&signature1[MUSIG2_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
+        print_hex(&signature_1[MUSIG2_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
         printf(" R: ");
-        print_hex(signature1, MUSIG2_PUBKEY_BYTES);
+        print_hex(signature_1, MUSIG2_PUBKEY_BYTES);
     }
     else {
         printf("* Failed to aggregate signatures.\n");
         for (k = 0; k < NR_SIGNERS; k++) {
             musig2_context_sig_free(&mcs_list[k]);
         }
-        free(aggr_pk.data);
         return -1;
     }
 
     /**** Verification ****/
 
-    musig2_prepare_verifier(&aggr_pk, serialized_pk_list, NR_SIGNERS);
+    musig2_prepare_verifier(&aggr_pk_1, serialized_pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (secp256k1_schnorrsig_verify(ctx, signature1, MSG_1, MSG_1_LEN, &aggr_pk))
+    if (musig2_verify_musig2(signature_1, MSG_1, MSG_1_LEN, &aggr_pk_1))
         printf("\n* Musig2 is VALID!\n");
     else
         printf("\n* Failed to verify Musig2!\n");
@@ -132,7 +129,6 @@ int main(void) {
             for (k = i; k < NR_SIGNERS; k++) {
                 musig2_context_sig_free(&mcs_list[k]);
             }
-            free(aggr_pk_2.data);
             return -1;
         }
     }
@@ -142,11 +138,11 @@ int main(void) {
     printf("\n* Aggregate signature: \n");
 
 
-    if (musig2_aggregate_partial_sig(mps2, signature2, NR_SIGNERS)){
+    if (musig2_aggregate_partial_sig(mps2, signature_2, NR_SIGNERS)){
         printf(" S: ");
-        print_hex(&signature2[MUSIG2_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
+        print_hex(&signature_2[MUSIG2_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
         printf(" R: ");
-        print_hex(signature2, MUSIG2_PUBKEY_BYTES);
+        print_hex(signature_2, MUSIG2_PUBKEY_BYTES);
     }
     else {
         printf("* Failed to aggregate signatures.\n");
@@ -155,19 +151,17 @@ int main(void) {
 
 
     /**** Verification ****/
-    // We could, in principal use `aggr_pk`, but we are just showcasing that
+    // We could, in principal use `aggr_pk_1`, but we are just showcasing that
     // the verifier from round 2 might be different to that of round 1, and
     // therefore the key needs to be recomputed.
 
     musig2_prepare_verifier(    &aggr_pk_2, serialized_pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (secp256k1_schnorrsig_verify(ctx, signature2, MSG_2, MSG_2_LEN, &aggr_pk_2))
+    if (musig2_verify_musig2(signature_2, MSG_2, MSG_2_LEN, &aggr_pk_2))
         printf("\n* Musig2 is VALID!\n");
     else
         printf("\n* Failed to verify Musig2!\n");
     printf("--------------------------------------------------------------------------- \n");
-
-    secp256k1_context_destroy(ctx);
 
     return 0;
 }
