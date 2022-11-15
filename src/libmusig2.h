@@ -121,18 +121,18 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
  *                          : mps: The list of partial signatures and R values of signers.
  *                          : pk_list: The list of public keys.
  *                          : nr_signatures: The number of signatures.
- * Returns      : 1/0.
+ * Returns      : 1/0/-1.
  * */
 int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
 
 /** Function    : musig2_prepare_verifier
  *  Purpose     : Prepares verification for schnorr verifier function. Aggregates the public key and serialises
- *                to the format accepted by schorr_verify.
+ *                to the format accepted by schnorr_verify.
  *  Parameters  : IN/OUT    : aggr_pk: serialised aggregated public key.
  *              : IN        : ctx: secp256k1_context object.
  *                          : pk_list: list of public keys from all signers
  *                          : nr_signers: the total number of signers/keys submitted.
- */
+ * */
 void musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
 
 
@@ -147,10 +147,29 @@ void musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pk, unsigned char *seriali
  *                          : serialized_batch_list: The string including the list of serialized batch commitments of all signers for all states.
  *                          : nr_signers: the total number of signers/keys submitted.
  *                          : nr_messages: the number of messages to be signed.
- */
+ * Returns      : 1/0.
+ * */
 int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
 
+/** Function    : musig2_serialise_shareable_context
+ *  Purpose     : Serializes the shareable content in compressed (33-byte) form. Takes musig2_context_sig as input which includes the public key and the
+ *                commitment list of the signer. Public key and the commitments are stored within keypair type in the struct, thus before serialization,
+ *                public key content is extracted from keypair. If all content converted and serialized successfully, it returns 1, 0 otherwise.
+ *  Parameters  : IN/OUT    : serialized_pubkey: 33-byte serialized public key.
+ *                          : serialized_batch_list: The list of 33-byte serialized commitments.
+ *              : IN        : mcs: musig2_context_sig object.
+ * Returns      : 1/0.
+ * */
 int musig2_serialise_shareable_context(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
 
+/** Function    : musig2_verify_musig2
+ *  Purpose     : Verifies given signature of given message with secp256k1_schnorrsig_verify.
+                  If verification succeeds, it returns 1, 0 otherwise.
+ *  Parameters  : IN        : signature: musig2_context_sig object.
+ *                          : msg: Message of the signature to be verified.
+ *                          : msg_len: Length of the message.
+ *                          : aggr_pk: Verification key of the signature.
+ * Returns      : 1/0.
+ * */
 int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk);
 

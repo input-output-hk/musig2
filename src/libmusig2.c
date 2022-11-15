@@ -169,7 +169,6 @@ static int musig2_set_parsig(musig2_context_sig *mcs, unsigned char *a, unsigned
     return 1;
 }
 
-/*** Free memory allocated in MuSig2 context ***/
 void musig2_context_free(musig2_context *mc) {
     if (mc->ctx != NULL) {
         secp256k1_context_destroy(mc->ctx);
@@ -187,7 +186,6 @@ void musig2_context_free(musig2_context *mc) {
     }
 }
 
-/*** Free memory allocated in MuSig2 Sig context ***/
 void musig2_context_sig_free(musig2_context_sig *mcs) {
     for (int l = mcs->state * V; l < mcs->mc.nr_messages * V; l++) {
         free(mcs->comm_list[l]);
@@ -215,7 +213,6 @@ int musig2_serialise_shareable_context(musig2_context_sig *mcs, unsigned char *s
     return 1;
 }
 
-/**** Signer ****/
 int musig2_init_signer(musig2_context_sig *mcs, int nr_messages) {
 
     mcs->mc.ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -371,7 +368,6 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
     return 1;
 }
 
-/**** Aggregator ****/
 int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *signature, int nr_signatures) {
     int i;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
