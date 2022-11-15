@@ -9,15 +9,21 @@ int init_musig2(unsigned char *serialized_pk_list, unsigned char *serialized_bat
 
     /**** Initialization ****/
     for (i = 0; i < nr_participants; i++) {
-        unsigned char serialized_comm_list[V * NR_MESSAGES][MUSIG2_PUBKEY_BYTES_COMPRESSED];
-        unsigned char serialized_pk[MUSIG2_PUBKEY_BYTES_COMPRESSED];
+        err = musig2_init_signer(&mcs_list[i], NR_MESSAGES);
+        if (err != 1)
+            return err;
+    }
 
-        /* Generate a keypair for the signer and get batch commitments. */
-        err = musig2_init_signer(&mcs_list[i], serialized_pk, serialized_comm_list, NR_MESSAGES);
+    /**** Registration ****/
+    for (i = 0; i < nr_participants; i++) {
+        unsigned char serialized_comm_list[V * NR_MESSAGES][MUSIG2_PUBKEY_BYTES_COMPRESSED];
+        unsigned char serialized_pubkey[MUSIG2_PUBKEY_BYTES_COMPRESSED];
+
+        err = musig2_serialise_shareable_context(&mcs_list[i], serialized_pubkey, serialized_comm_list);
         if (err != 1)
             return err;
 
-        memcpy(&serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_pk, MUSIG2_PUBKEY_BYTES_COMPRESSED);
+        memcpy(&serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_pubkey, MUSIG2_PUBKEY_BYTES_COMPRESSED);
         l = 0; // the index of the signer's commitment list.
         for (k = 0; k < NR_MESSAGES; k++)
             for (j = 0; j < V; j++, l++)

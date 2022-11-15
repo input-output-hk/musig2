@@ -10,8 +10,8 @@ int main(void) {
     musig2_partial_signature mps1[NR_SIGNERS];  // Array of partial signatures for the first state
     musig2_partial_signature mps2[NR_SIGNERS];  // Array of partial signatures for the second state
 
-    musig2_pubkey aggr_pk_1;    // Aggregate public key of the first state
-    musig2_pubkey aggr_pk_2;    // Aggregate public key of the second state
+    musig2_aggr_pubkey aggr_pk_1;    // Aggregate public key of the first state
+    musig2_aggr_pubkey aggr_pk_2;    // Aggregate public key of the second state
 
     unsigned char serialized_pk_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Serialized public keys of signers
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED]; // Serialized batch commitments
@@ -99,9 +99,9 @@ int main(void) {
 
     if (musig2_aggregate_partial_sig(mps1, signature_1, NR_SIGNERS)){
         printf(" S: ");
-        print_hex(&signature_1[MUSIG2_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
+        print_hex(&signature_1[MUSIG2_AGGR_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
         printf(" R: ");
-        print_hex(signature_1, MUSIG2_PUBKEY_BYTES);
+        print_hex(signature_1, MUSIG2_AGGR_PUBKEY_BYTES);
     }
     else {
         printf("* Failed to aggregate signatures.\n");
@@ -151,9 +151,9 @@ int main(void) {
 
     if (musig2_aggregate_partial_sig(mps2, signature_2, NR_SIGNERS)){
         printf(" S: ");
-        print_hex(&signature_2[MUSIG2_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
+        print_hex(&signature_2[MUSIG2_AGGR_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
         printf(" R: ");
-        print_hex(signature_2, MUSIG2_PUBKEY_BYTES);
+        print_hex(signature_2, MUSIG2_AGGR_PUBKEY_BYTES);
     }
     else {
         printf("* Failed to aggregate signatures.\n");

@@ -40,10 +40,10 @@ static int musig2_batch_commitment(musig2_context_sig *mcs) {
 static void musig2_key_agg_coef(musig2_context *mc, unsigned char *ser_pk, unsigned char *a) {
 
     unsigned char tag[13] = "BIP0340/nonce";    // Tag of hash to generate the exponents
-    unsigned char temp_concat[(mc->nr_signers + 1) * MUSIG2_PUBKEY_BYTES];    // Temp to store the concatenation of public keys
+    unsigned char temp_concat[(mc->nr_signers + 1) * MUSIG2_AGGR_PUBKEY_BYTES];    // Temp to store the concatenation of public keys
 
-    memcpy(temp_concat, mc->L, mc->nr_signers * MUSIG2_PUBKEY_BYTES );      // Copy L into temp_concat
-    memcpy(&temp_concat[mc->nr_signers * MUSIG2_PUBKEY_BYTES], ser_pk, MUSIG2_PUBKEY_BYTES );  /* Copy given pk besides L */
+    memcpy(temp_concat, mc->L, mc->nr_signers * MUSIG2_AGGR_PUBKEY_BYTES );      // Copy L into temp_concat
+    memcpy(&temp_concat[mc->nr_signers * MUSIG2_AGGR_PUBKEY_BYTES], ser_pk, MUSIG2_AGGR_PUBKEY_BYTES );  /* Copy given pk besides L */
     assert(secp256k1_tagged_sha256(mc->ctx, a, tag, sizeof (tag), temp_concat, sizeof (temp_concat)));
 }
 
@@ -51,22 +51,22 @@ static void musig2_calc_b(musig2_context *mc, const unsigned char *ser_aggr_pk, 
 
     int j;
     unsigned char tag[13] = "BIP0340/nonce";    // Tag for the hash to compute b
-    unsigned char ser_R[MUSIG2_PUBKEY_BYTES];
-    unsigned char temp_concat[(1 + V) * MUSIG2_PUBKEY_BYTES + msg_len]; // Temp value to store the concatenation of aggr_pk, aggr_R_list and the message.
+    unsigned char ser_R[MUSIG2_AGGR_PUBKEY_BYTES];
+    unsigned char temp_concat[(1 + V) * MUSIG2_AGGR_PUBKEY_BYTES + msg_len]; // Temp value to store the concatenation of aggr_pk, aggr_R_list and the message.
     secp256k1_xonly_pubkey xonly_R;
 
     /* Copy ser_aggr_pk into temp_concat */
-    memcpy(temp_concat, ser_aggr_pk, MUSIG2_PUBKEY_BYTES);
+    memcpy(temp_concat, ser_aggr_pk, MUSIG2_AGGR_PUBKEY_BYTES);
 
     /* Get x_only R_j, serialize and concatenate. */
     for (j = 0; j < V; j++) {
         assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &xonly_R, NULL, mc->aggr_R_list[state * V + j]));
         secp256k1_xonly_pubkey_serialize(mc->ctx, ser_R, &xonly_R);
-        memcpy(&temp_concat[MUSIG2_PUBKEY_BYTES * (j + 1)], ser_R, MUSIG2_PUBKEY_BYTES);
+        memcpy(&temp_concat[MUSIG2_AGGR_PUBKEY_BYTES * (j + 1)], ser_R, MUSIG2_AGGR_PUBKEY_BYTES);
     }
 
     /* Concatenate msg to end */
-    memcpy(&temp_concat[(1 + V) * MUSIG2_PUBKEY_BYTES], msg, msg_len);
+    memcpy(&temp_concat[(1 + V) * MUSIG2_AGGR_PUBKEY_BYTES], msg, msg_len);
 
     /* Compute b */
     assert(secp256k1_tagged_sha256(mc->ctx, b, tag, sizeof (tag), temp_concat, sizeof(temp_concat)));
@@ -240,13 +240,13 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list) {
 
     int i;
     unsigned char temp_a[MUSIG2_SCALAR_BYTES];
-    unsigned char ser_pk_list[mc->nr_signers][MUSIG2_PUBKEY_BYTES];
+    unsigned char ser_pk_list[mc->nr_signers][MUSIG2_AGGR_PUBKEY_BYTES];
     secp256k1_pubkey tweakable_pk_list[mc->nr_signers];
     const secp256k1_pubkey* pk_pointer_list[mc->nr_signers];
     secp256k1_xonly_pubkey temp_xonly_pk;
 
     /* Allocate memory for L */
-    mc->L = malloc(MUSIG2_PUBKEY_BYTES * mc->nr_signers);
+    mc->L = malloc(MUSIG2_AGGR_PUBKEY_BYTES * mc->nr_signers);
 
     /* Multiply pk_i with a_i. Store in temp_pk_list[i]. */
     for (i = 0; i < mc->nr_signers; i++) {
@@ -257,7 +257,7 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list) {
         secp256k1_xonly_pubkey_serialize(mc->ctx, ser_pk_list[i], &temp_xonly_pk);
 
         /* Update L */
-        memcpy(&mc->L[i * MUSIG2_PUBKEY_BYTES], ser_pk_list[i], MUSIG2_PUBKEY_BYTES);
+        memcpy(&mc->L[i * MUSIG2_AGGR_PUBKEY_BYTES], ser_pk_list[i], MUSIG2_AGGR_PUBKEY_BYTES);
     }
 
     for (i = 0; i < mc->nr_signers; i++) {
@@ -324,13 +324,13 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
 
 int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const unsigned char *msg, int msg_len) {
 
-    unsigned char ser_aggr_pk[MUSIG2_PUBKEY_BYTES];
-    unsigned char ser_aggr_R[MUSIG2_PUBKEY_BYTES];
-    unsigned char bytes_to_hash[MUSIG2_PUBKEY_BYTES * 2 + msg_len];   // Temp to store ( ser_xonly_R || ser_xonly_X_ || msg_hash )
+    unsigned char ser_aggr_pk[MUSIG2_AGGR_PUBKEY_BYTES];
+    unsigned char ser_aggr_R[MUSIG2_AGGR_PUBKEY_BYTES];
+    unsigned char bytes_to_hash[MUSIG2_AGGR_PUBKEY_BYTES * 2 + msg_len];   // Temp to store ( ser_xonly_R || ser_xonly_X_ || msg_hash )
     unsigned char a[MUSIG2_SCALAR_BYTES], b[MUSIG2_SCALAR_BYTES], c[MUSIG2_SCALAR_BYTES];
     unsigned char b_LIST[V][MUSIG2_SCALAR_BYTES] = {0};
 
-    unsigned char ser_pk[MUSIG2_PUBKEY_BYTES];  // Serialized public key of signer
+    unsigned char ser_pk[MUSIG2_AGGR_PUBKEY_BYTES];  // Serialized public key of signer
     secp256k1_xonly_pubkey xonly_temp;
     int par_R;
 
@@ -358,9 +358,9 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
 
     secp256k1_xonly_pubkey_serialize(mcs->mc.ctx, ser_aggr_R, &mps->R);
 
-    memcpy(bytes_to_hash, &ser_aggr_R, MUSIG2_PUBKEY_BYTES);
-    memcpy(&bytes_to_hash[MUSIG2_PUBKEY_BYTES], &ser_aggr_pk, MUSIG2_PUBKEY_BYTES);
-    memcpy(&bytes_to_hash[MUSIG2_PUBKEY_BYTES * 2], msg, msg_len);
+    memcpy(bytes_to_hash, &ser_aggr_R, MUSIG2_AGGR_PUBKEY_BYTES);
+    memcpy(&bytes_to_hash[MUSIG2_AGGR_PUBKEY_BYTES], &ser_aggr_pk, MUSIG2_AGGR_PUBKEY_BYTES);
+    memcpy(&bytes_to_hash[MUSIG2_AGGR_PUBKEY_BYTES * 2], msg, msg_len);
 
     assert(secp256k1_tagged_sha256(mcs->mc.ctx, c, (const unsigned char *)"BIP0340/challenge" , 17, bytes_to_hash, sizeof (bytes_to_hash)));
 
@@ -388,9 +388,9 @@ int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *s
     secp256k1_xonly_pubkey_serialize(ctx, signature, &mps[0].R);
 
     /* Aggregate the partial signatures */
-    memcpy(signature + MUSIG2_PUBKEY_BYTES, mps[0].sig, MUSIG2_SCALAR_BYTES);
+    memcpy(signature + MUSIG2_AGGR_PUBKEY_BYTES, mps[0].sig, MUSIG2_SCALAR_BYTES);
     for (i = 1; i < nr_signatures; i++) {
-        if (!secp256k1_ec_seckey_tweak_add(ctx, signature + MUSIG2_PUBKEY_BYTES, mps[i].sig)) {
+        if (!secp256k1_ec_seckey_tweak_add(ctx, signature + MUSIG2_AGGR_PUBKEY_BYTES, mps[i].sig)) {
             secp256k1_context_destroy(ctx);
             return 0;
         }
@@ -401,7 +401,7 @@ int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *s
     return 1;
 }
 
-void musig2_prepare_verifier(musig2_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers) {
+void musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers) {
     musig2_context verifier_context;
     verifier_context.aggr_R_list = NULL;
     verifier_context.nr_signers = nr_signers;
@@ -420,7 +420,7 @@ void musig2_prepare_verifier(musig2_pubkey *aggr_pk, unsigned char *serialized_p
     musig2_context_free(&verifier_context);
 }
 
-int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_pubkey *aggr_pk){
+int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk){
     int result;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     result = secp256k1_schnorrsig_verify(ctx, signature, msg, msg_len, aggr_pk);

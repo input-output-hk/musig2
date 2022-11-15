@@ -12,16 +12,16 @@
 #define V                                   2           // Number of nonce values
 #define MUSIG2_SCALAR_BYTES                 32          // SCALAR BYTES
 #define MUSIG2_PARSIG_BYTES                 32          // PARTIAL SIGNATURE BYTES
-#define MUSIG2_PUBKEY_BYTES                 32          // XONLY PUBLIC KEY BYTES
+#define MUSIG2_AGGR_PUBKEY_BYTES            32          // XONLY PUBLIC KEY BYTES
 #define MUSIG2_PUBKEY_BYTES_COMPRESSED      33          // COMPRESSED PUBLIC KEY BYTES
 #define MUSIG2_PUBKEY_BYTES_FULL            64          // FULL SIZE PUBLIC KEY BYTES
 #define MUSIG2_BYTES                        64          // SCHNORR SIGNATURE BYTES
 
 
-/** Type        : musig2_pubkey
+/** Type        : musig2_aggr_pubkey
  *  Purpose     : MuSig2 public key as secp256k1_xonly_pubkey.
 * */
-typedef secp256k1_xonly_pubkey musig2_pubkey;
+typedef secp256k1_xonly_pubkey musig2_aggr_pubkey;
 
 /** Struct      : musig2_context
  *  Purpose     : Stores the parameters of musig2.
@@ -133,7 +133,7 @@ int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *s
  *                          : pk_list: list of public keys from all signers
  *                          : nr_signers: the total number of signers/keys submitted.
  */
-void musig2_prepare_verifier(musig2_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
+void musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
 
 
 /** Function    : musig2_signer_precomputation
@@ -152,5 +152,5 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
 
 int musig2_serialise_shareable_context(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
 
-int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_pubkey *aggr_pk);
+int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk);
 
