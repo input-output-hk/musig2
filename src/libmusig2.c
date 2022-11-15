@@ -204,7 +204,6 @@ int musig2_prepare_signer_to_register(musig2_context_sig *mcs, unsigned char *se
     if (secp256k1_keypair_pub(mcs->mc.ctx, &temp_pk, &mcs->keypair))
         secp256k1_ec_pubkey_serialize(mcs->mc.ctx, serialized_pubkey, &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
     else {
-        musig2_context_sig_free(mcs);
         return 0;
     }
 
@@ -212,7 +211,6 @@ int musig2_prepare_signer_to_register(musig2_context_sig *mcs, unsigned char *se
         if (secp256k1_keypair_pub(mcs->mc.ctx, &temp_pk, mcs->comm_list[i]))
             secp256k1_ec_pubkey_serialize(mcs->mc.ctx, serialized_batch_list[i], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
         else {
-            musig2_context_sig_free(mcs);
             return 0;
         }
     }
@@ -235,12 +233,10 @@ int musig2_init_signer(musig2_context_sig *mcs, unsigned char *serialized_pubkey
 
     /* Generate the batch commitments for given signer */
     if (!musig2_batch_commitment(mcs)) {
-        musig2_context_sig_free(mcs);
         return 0;
     }
 
     if (!musig2_prepare_signer_to_register(mcs, serialized_pubkey, serialized_comm_list)){
-        musig2_context_sig_free(mcs);
         return 0;
     }
 
