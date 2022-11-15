@@ -81,7 +81,7 @@ void musig2_context_sig_free(musig2_context_sig *mcs);
  *                          : nr_messages: The number of messages.
  * Returns      : 1/0.
  * */
-int musig2_init_signer(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_comm_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED], int nr_messages);
+int musig2_init_signer(musig2_context_sig *mcs, int nr_messages);
 
 /** Function    : musig2_aggregate_pubkey
  *  Purpose     : Aggregates the given list of public keys.
@@ -150,7 +150,7 @@ void musig2_prepare_verifier(musig2_pubkey *aggr_pk, unsigned char *serialized_p
  */
 int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
 
-int musig2_prepare_signer_to_register(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
+int musig2_serialise_shareable_context(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
 
 int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_pubkey *aggr_pk);
 
