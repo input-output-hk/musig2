@@ -9,15 +9,19 @@
 #include "random.h"
 
 
-// todo: use the secp library constants
-#define V                               2           // Number of nonce values
-#define SCALAR_BYTES                    32          // SCALAR BYTES
-#define XONLY_BYTES                     32          // XONLY PUBLIC KEY BYTES
-#define PAR_SIG_BYTES                   32          // PARTIAL SIGNATURE BYTES
-#define PK_BYTES                        64          // FULL SIZE PUBLIC KEY BYTES
-#define SCH_SIG_BYTES                   64          // SCHNORR SIGNATURE BYTES
-#define SER_PK_BYTES_COMPRESSED         33          // Serialized public key bytes for compressed version
+#define V                                   2           // Number of nonce values
+#define MUSIG2_SCALAR_BYTES                 32          // SCALAR BYTES
+#define MUSIG2_PARSIG_BYTES                 32          // PARTIAL SIGNATURE BYTES
+#define MUSIG2_AGGR_PUBKEY_BYTES            32          // XONLY PUBLIC KEY BYTES
+#define MUSIG2_PUBKEY_BYTES_COMPRESSED      33          // COMPRESSED PUBLIC KEY BYTES
+#define MUSIG2_PUBKEY_BYTES_FULL            64          // FULL SIZE PUBLIC KEY BYTES
+#define MUSIG2_BYTES                        64          // SCHNORR SIGNATURE BYTES
 
+
+/** Type        : musig2_aggr_pubkey
+ *  Purpose     : MuSig2 public key as secp256k1_xonly_pubkey.
+* */
+typedef secp256k1_xonly_pubkey musig2_aggr_pubkey;
 
 /** Struct      : musig2_context
  *  Purpose     : Stores the parameters of musig2.
@@ -59,7 +63,7 @@ typedef struct {
  *              : R: The aggregated commitment of the signature.
  * */
 typedef struct{
-    unsigned char sig[PAR_SIG_BYTES];
+    unsigned char sig[MUSIG2_PARSIG_BYTES];
     secp256k1_xonly_pubkey R;
 }musig2_partial_signature;
 
@@ -77,7 +81,7 @@ void musig2_context_sig_free(musig2_context_sig *mcs);
  *                          : nr_messages: The number of messages.
  * Returns      : 1/0.
  * */
-int musig2_init_signer(musig2_context_sig *mcs, secp256k1_context *ctx, int nr_messages);
+int musig2_init_signer(musig2_context_sig *mcs, int nr_messages);
 
 /** Function    : musig2_aggregate_pubkey
  *  Purpose     : Aggregates the given list of public keys.
@@ -117,19 +121,19 @@ int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const un
  *                          : mps: The list of partial signatures and R values of signers.
  *                          : pk_list: The list of public keys.
  *                          : nr_signatures: The number of signatures.
- * Returns      : 1/0.
+ * Returns      : 1/0/-1.
  * */
-int musig2_aggregate_partial_sig(secp256k1_context *ctx, musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
+int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
 
 /** Function    : musig2_prepare_verifier
  *  Purpose     : Prepares verification for schnorr verifier function. Aggregates the public key and serialises
- *                to the format accepted by schorr_verify.
+ *                to the format accepted by schnorr_verify.
  *  Parameters  : IN/OUT    : aggr_pk: serialised aggregated public key.
  *              : IN        : ctx: secp256k1_context object.
  *                          : pk_list: list of public keys from all signers
  *                          : nr_signers: the total number of signers/keys submitted.
- */
-void musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
+ * */
+void musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
 
 
 /** Function    : musig2_signer_precomputation
@@ -143,5 +147,29 @@ void musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubkey *agg
  *                          : serialized_batch_list: The string including the list of serialized batch commitments of all signers for all states.
  *                          : nr_signers: the total number of signers/keys submitted.
  *                          : nr_messages: the number of messages to be signed.
- */
+ * Returns      : 1/0.
+ * */
 int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
+
+/** Function    : musig2_serialise_shareable_context
+ *  Purpose     : Serializes the shareable content in compressed (33-byte) form. Takes musig2_context_sig as input which includes the public key and the
+ *                commitment list of the signer. Public key and the commitments are stored within keypair type in the struct, thus before serialization,
+ *                public key content is extracted from keypair. If all content converted and serialized successfully, it returns 1, 0 otherwise.
+ *  Parameters  : IN/OUT    : serialized_pubkey: 33-byte serialized public key.
+ *                          : serialized_batch_list: The list of 33-byte serialized commitments.
+ *              : IN        : mcs: musig2_context_sig object.
+ * Returns      : 1/0.
+ * */
+int musig2_serialise_shareable_context(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
+
+/** Function    : musig2_verify
+ *  Purpose     : Verifies given signature of given message with secp256k1_schnorrsig_verify.
+                  If verification succeeds, it returns 1, 0 otherwise.
+ *  Parameters  : IN        : signature: musig2_context_sig object.
+ *                          : msg: Message of the signature to be verified.
+ *                          : msg_len: Length of the message.
+ *                          : aggr_pk: Verification key of the signature.
+ * Returns      : 1/0.
+ * */
+int musig2_verify(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk);
+

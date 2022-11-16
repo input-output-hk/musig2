@@ -2,42 +2,33 @@
 extern "C" {
 #include "../src/libmusig2.h"
 #include "config.h"
-int init_musig2(secp256k1_context *ctx, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, musig2_context_sig *mcs_list,
-                int nr_participants) {
-    int i, j, k, l;
-    int ind;
-    int err;
-    secp256k1_pubkey temp_pk;
-    size_t ser_size = SER_PK_BYTES_COMPRESSED;
 
+int init_musig2(unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, musig2_context_sig *mcs_list, int nr_participants) {
+    int i, j, k, l;
+    int err;
 
     /**** Initialization ****/
     for (i = 0; i < nr_participants; i++) {
-        /* Generate a keypair for the signer and get batch commitments. */
-        err = musig2_init_signer(&mcs_list[i], ctx, NR_MESSAGES);
-        if (err != 1) {
+        err = musig2_init_signer(&mcs_list[i], NR_MESSAGES);
+        if (err != 1)
             return err;
-        }
+    }
 
-        /* Store the public key of the signer in pk_list */
-        err = secp256k1_keypair_pub(ctx, &temp_pk, &mcs_list[i].keypair);
-        secp256k1_ec_pubkey_serialize(ctx, &serialized_pk_list[i * SER_PK_BYTES_COMPRESSED], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED);
+    /**** Registration ****/
+    for (i = 0; i < nr_participants; i++) {
+        unsigned char serialized_comm_list[V * NR_MESSAGES][MUSIG2_PUBKEY_BYTES_COMPRESSED];
+        unsigned char serialized_pubkey[MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
-        if (err != 1) {
+        err = musig2_serialise_shareable_context(&mcs_list[i], serialized_pubkey, serialized_comm_list);
+        if (err != 1)
             return err;
-        }
-        /* Store the batch commitments of the signer in batch_list */
+
+        memcpy(&serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_pubkey, MUSIG2_PUBKEY_BYTES_COMPRESSED);
         l = 0; // the index of the signer's commitment list.
-        for (k = 0; k < NR_MESSAGES; k++) {
-            for (j = 0; j < V; j++, l++) {
-                ind = ((nr_participants * V * k) + (i * V) + j) * SER_PK_BYTES_COMPRESSED; // the index for the list of collected batches.
-                err = secp256k1_keypair_pub(ctx, &temp_pk, mcs_list[i].comm_list[l]);
-                if (err != 1) {
-                    return err;
-                }
-                secp256k1_ec_pubkey_serialize(ctx, &serialized_batch_list[ind], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED);
-            }
-        }
+        for (k = 0; k < NR_MESSAGES; k++)
+            for (j = 0; j < V; j++, l++)
+                memcpy(&serialized_batch_list[(k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list[l],
+                       MUSIG2_PUBKEY_BYTES_COMPRESSED);
     }
     return 1;
 }
