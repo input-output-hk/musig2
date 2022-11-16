@@ -221,7 +221,6 @@ int musig2_init_signer(musig2_context_sig *mcs, int nr_messages) {
 
     /* Generate a key pair for given signer */
     if (!musig2_key_gen(mcs)) {
-        musig2_context_sig_free(mcs);
         return 0;
     }
 
@@ -416,7 +415,7 @@ void musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pk, unsigned char *seriali
     musig2_context_free(&verifier_context);
 }
 
-int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk){
+int musig2_verify(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk){
     int result;
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     result = secp256k1_schnorrsig_verify(ctx, signature, msg, msg_len, aggr_pk);

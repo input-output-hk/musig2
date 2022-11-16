@@ -162,7 +162,7 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
  * */
 int musig2_serialise_shareable_context(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
 
-/** Function    : musig2_verify_musig2
+/** Function    : musig2_verify
  *  Purpose     : Verifies given signature of given message with secp256k1_schnorrsig_verify.
                   If verification succeeds, it returns 1, 0 otherwise.
  *  Parameters  : IN        : signature: musig2_context_sig object.
@@ -171,5 +171,5 @@ int musig2_serialise_shareable_context(musig2_context_sig *mcs, unsigned char *s
  *                          : aggr_pk: Verification key of the signature.
  * Returns      : 1/0.
  * */
-int musig2_verify_musig2(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk);
+int musig2_verify(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk);
 

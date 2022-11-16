@@ -68,7 +68,6 @@ int main(void) {
     /**** Aggregate the public keys and batch commitments for each signer for all messages ****/
     for (i = 0; i < NR_SIGNERS; i++) {
         if (!musig2_signer_precomputation(&mcs_list[i].mc, serialized_pk_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES)) {
-            musig2_context_sig_free(&mcs_list[k]);
             return -1;
         }
     }
@@ -87,7 +86,6 @@ int main(void) {
         }
         else {
             printf("* Failed to generate signature for Signer %d.\n", i + 1);
-            musig2_context_sig_free(&mcs_list[k]);
             return -1;
         }
     }
@@ -115,7 +113,7 @@ int main(void) {
 
     musig2_prepare_verifier(&aggr_pk_1, serialized_pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_verify_musig2(signature_1, MSG_1, MSG_1_LEN, &aggr_pk_1))
+    if (musig2_verify(signature_1, MSG_1, MSG_1_LEN, &aggr_pk_1))
         printf("\n* Musig2 is VALID!\n");
     else
         printf("\n* Failed to verify Musig2!\n");
@@ -168,7 +166,7 @@ int main(void) {
 
     musig2_prepare_verifier(    &aggr_pk_2, serialized_pk_list, NR_SIGNERS);
     /* Verify the aggregated signature with secp256k1_schnorrsig_verify */
-    if (musig2_verify_musig2(signature_2, MSG_2, MSG_2_LEN, &aggr_pk_2))
+    if (musig2_verify(signature_2, MSG_2, MSG_2_LEN, &aggr_pk_2))
         printf("\n* Musig2 is VALID!\n");
     else
         printf("\n* Failed to verify Musig2!\n");
