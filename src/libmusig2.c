@@ -399,7 +399,6 @@ MUSIG2_API musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubke
         assert(secp256k1_ec_pubkey_parse(ctx, &pk_list[i], &serialized_pk_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], MUSIG2_PUBKEY_BYTES_COMPRESSED));
 
     if (!musig2_aggregate_pubkey(&verifier_context, pk_list)){
-        musig2_context_free(&verifier_context);
         return MUSIG2_ERR_AGGR_PK;
     }
     /* Get the xonly public key */
@@ -408,4 +407,3 @@ MUSIG2_API musig2_prepare_verifier(secp256k1_context *ctx, secp256k1_xonly_pubke
     musig2_context_free(&verifier_context);
     return MUSIG2_OK;
 }
-
