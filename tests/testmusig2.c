@@ -3,7 +3,7 @@ extern "C" {
 #include "../src/libmusig2.h"
 #include "config.h"
 
-int musig2_helper_setup(musig2_context_sig *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_participants) {
+int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_participants) {
     int i, j, k, l;
     int err;
 
@@ -33,7 +33,7 @@ int musig2_helper_setup(musig2_context_sig *mcs_list, unsigned char *serialized_
     return 1;
 }
 
-int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, musig2_context_sig *mcs_list) {
+int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, musig2_context_signer *mcs_list) {
     /**** Aggregate the public keys and batch commitments for each signer ****/
     int i;
     int cnt = 0;
@@ -45,7 +45,7 @@ int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned
     return 1;
 }
 
-int musig2_helper_sign(musig2_context_sig *mcs_list, musig2_partial_signature *mps, int nr_participants) {
+int musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature *mps, int nr_participants) {
     int i, err;
     for (i = 0; i < nr_participants; i++) {
         /* Generate the partial signatures */

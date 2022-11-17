@@ -1,14 +1,12 @@
 #include "src/libmusig2.h"
 #include "tests/config.h"
 
-
-
 int main(void) {
 
-    musig2_context_sig mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_sig
+    musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
 
-    musig2_partial_signature mps1[NR_SIGNERS];  // Array of partial signatures for the first state
-    musig2_partial_signature mps2[NR_SIGNERS];  // Array of partial signatures for the second state
+    musig2_context_signature mps1[NR_SIGNERS];  // Array of partial signatures for the first state
+    musig2_context_signature mps2[NR_SIGNERS];  // Array of partial signatures for the second state
 
     musig2_aggr_pubkey aggr_pubkey1;    // Aggregate public key of the first state
     musig2_aggr_pubkey aggr_pubkey2;    // Aggregate public key of the second state
