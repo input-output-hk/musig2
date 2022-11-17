@@ -42,9 +42,9 @@ static int musig2_batch_commitment(musig2_context_signer *mcs) {
 static void musig2_key_agg_coef(musig2_context *mc, unsigned char *a, unsigned char *serialized_pubkey) {
 
     unsigned char tag[13] = "BIP0340/nonce";    // Tag of hash to generate the exponents
-    unsigned char temp_concat[(mc->nr_signers + 1) * MUSIG2_AGGR_PUBKEY_BYTES];    // Temp to store the concatenation of public keys
+    unsigned char temp_concat[(mc->nr_signers + 1) * MUSIG2_AGGR_PUBKEY_BYTES]; // Temp to store the concatenation of public keys
 
-    memcpy(temp_concat, mc->L, mc->nr_signers * MUSIG2_AGGR_PUBKEY_BYTES );      // Copy L into temp_concat
+    memcpy(temp_concat, mc->L, mc->nr_signers * MUSIG2_AGGR_PUBKEY_BYTES ); /* Copy L into temp_concat */
     memcpy(&temp_concat[mc->nr_signers * MUSIG2_AGGR_PUBKEY_BYTES], serialized_pubkey, MUSIG2_AGGR_PUBKEY_BYTES );  /* Copy given pk besides L */
     assert(secp256k1_tagged_sha256(mc->ctx, a, tag, sizeof (tag), temp_concat, sizeof (temp_concat)));
 
@@ -52,7 +52,7 @@ static void musig2_key_agg_coef(musig2_context *mc, unsigned char *a, unsigned c
 
 static void musig2_calc_b(musig2_context *mc, unsigned char *b, const unsigned char *serialized_aggr_pubkey, const unsigned char *msg, int msg_len, int state) {
 
-    secp256k1_xonly_pubkey xonly_R;
+    secp256k1_xonly_pubkey temp_xonly_pk;
     unsigned char tag[13] = "BIP0340/nonce";    // Tag for the hash to compute b
     unsigned char serialized_aggr_R[MUSIG2_AGGR_PUBKEY_BYTES];
     unsigned char temp_concat[(1 + V) * MUSIG2_AGGR_PUBKEY_BYTES + msg_len]; // Temp value to store the concatenation of aggr_pubkey, aggr_R_list and the message.
@@ -63,8 +63,8 @@ static void musig2_calc_b(musig2_context *mc, unsigned char *b, const unsigned c
 
     /* Get x_only R_j, serialize and concatenate. */
     for (j = 0; j < V; j++) {
-        assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &xonly_R, NULL, mc->aggr_R_list[state * V + j]));
-        secp256k1_xonly_pubkey_serialize(mc->ctx, serialized_aggr_R, &xonly_R);
+        assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pk, NULL, mc->aggr_R_list[state * V + j]));
+        secp256k1_xonly_pubkey_serialize(mc->ctx, serialized_aggr_R, &temp_xonly_pk);
         memcpy(&temp_concat[MUSIG2_AGGR_PUBKEY_BYTES * (j + 1)], serialized_aggr_R, MUSIG2_AGGR_PUBKEY_BYTES);
     }
 
@@ -80,8 +80,8 @@ static int musig2_calc_R(musig2_context *mc, secp256k1_xonly_pubkey *aggr_R, int
 
     secp256k1_pubkey tweakable_Rb_list[V];
     secp256k1_pubkey *Rb_list[V];
-    secp256k1_pubkey temp_pubkey;
-    secp256k1_xonly_pubkey temp_xonly_pubkey;   // temp value to store xonly point
+    secp256k1_pubkey temp_pk;
+    secp256k1_xonly_pubkey temp_xonly_pk;
     int j;
 
     for (j = 0; j < V; j++)
@@ -90,7 +90,6 @@ static int musig2_calc_R(musig2_context *mc, secp256k1_xonly_pubkey *aggr_R, int
     /* Compute b_LIST = { b^(j-1) } and Rb_LIST = { R_j * b^(j-1) } */
     b_LIST[0][31] = 1; // first element of b_LIST = 1;
     Rb_list[0] = &tweakable_Rb_list[0];
-
     for (j = 1; j < V; j++) {
         Rb_list[j] = &tweakable_Rb_list[j];
         memcpy(b_LIST[j], b_LIST[j-1], MUSIG2_SCALAR_BYTES);
@@ -103,13 +102,13 @@ static int musig2_calc_R(musig2_context *mc, secp256k1_xonly_pubkey *aggr_R, int
     }
 
     /* R = SUM ({ R_j * b^(j-1) }) */
-    if (!secp256k1_ec_pubkey_combine(mc->ctx, &temp_pubkey, (const secp256k1_pubkey *const *)Rb_list, V)) {
+    if (!secp256k1_ec_pubkey_combine(mc->ctx, &temp_pk, (const secp256k1_pubkey *const *)Rb_list, V)) {
         return 0;
     }
 
     /* Get x_only versions and parities of aggregated public key and aggregated R */
-    assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pubkey, &mc->pk_parity, &mc->aggr_pubkey));
-    assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, aggr_R, R_parity, &temp_pubkey));
+    assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pk, &mc->pk_parity, &mc->aggr_pubkey));
+    assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, aggr_R, R_parity, &temp_pk));
 
     /* If just the parity of R is 1, negate b_list and change the parity of R */
     if (*R_parity == 1 && mc->pk_parity == 0){
@@ -178,11 +177,11 @@ static int musig2_set_parsig(musig2_context_signer *mcs, unsigned char *partial_
 
 int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pubkey_list) {
 
-    secp256k1_pubkey tweakable_pubkey_list[mc->nr_signers];
+    secp256k1_pubkey tweakable_pk_list[mc->nr_signers];
     const secp256k1_pubkey* pubkey_pointer_list[mc->nr_signers];
-    secp256k1_xonly_pubkey temp_xonly_pubkey;
+    secp256k1_xonly_pubkey temp_xonly_pk;
     unsigned char temp_a[MUSIG2_SCALAR_BYTES];
-    unsigned char serialized_pubkey_list[mc->nr_signers][MUSIG2_AGGR_PUBKEY_BYTES];
+    unsigned char serialized_pk_list[mc->nr_signers][MUSIG2_AGGR_PUBKEY_BYTES];
     int i;
 
     /* Allocate memory for L */
@@ -191,18 +190,18 @@ int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pubkey_list) {
     /* Multiply pk_i with a_i. Store in temp_pk_list[i]. */
     for (i = 0; i < mc->nr_signers; i++) {
         /* Copy the current public key into temp_pk_list */
-        memcpy(tweakable_pubkey_list[i].data, pubkey_list[i].data, MUSIG2_PUBKEY_BYTES_FULL);
-        pubkey_pointer_list[i] = &tweakable_pubkey_list[i];
-        assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pubkey, NULL, pubkey_pointer_list[i]));
-        secp256k1_xonly_pubkey_serialize(mc->ctx, serialized_pubkey_list[i], &temp_xonly_pubkey);
+        memcpy(tweakable_pk_list[i].data, pubkey_list[i].data, MUSIG2_PUBKEY_BYTES_FULL);
+        pubkey_pointer_list[i] = &tweakable_pk_list[i];
+        assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pk, NULL, pubkey_pointer_list[i]));
+        secp256k1_xonly_pubkey_serialize(mc->ctx, serialized_pk_list[i], &temp_xonly_pk);
 
         /* Update L */
-        memcpy(&mc->L[i * MUSIG2_AGGR_PUBKEY_BYTES], serialized_pubkey_list[i], MUSIG2_AGGR_PUBKEY_BYTES);
+        memcpy(&mc->L[i * MUSIG2_AGGR_PUBKEY_BYTES], serialized_pk_list[i], MUSIG2_AGGR_PUBKEY_BYTES);
     }
 
     for (i = 0; i < mc->nr_signers; i++) {
         /* Get the exponent `a` of current public key */
-        musig2_key_agg_coef(mc, temp_a, serialized_pubkey_list[i]);
+        musig2_key_agg_coef(mc, temp_a, serialized_pk_list[i]);
 
         /* Compute `pk_i * a_i` */
         if (!secp256k1_ec_pubkey_tweak_mul(mc->ctx, (secp256k1_pubkey*)pubkey_pointer_list[i], temp_a)) {
