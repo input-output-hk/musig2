@@ -286,8 +286,7 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
     mc->nr_signers = nr_signers;
     mc->aggr_R_list = malloc(sizeof (secp256k1_pubkey*) * nr_messages * V);
 
-
-    /* Parse the batch commitments of the signers */
+    /* Parse the public keys and batch commitments of the signers */
     for (i = 0; i < nr_signers; i++) {
         assert(secp256k1_ec_pubkey_parse(mc->ctx, &pubkey_list[i], &serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], MUSIG2_PUBKEY_BYTES_COMPRESSED));
         for (k = 0; k < nr_messages; k++) {
@@ -298,6 +297,7 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
         }
     }
 
+    /* Aggregate the given public keys */
     if (!musig2_aggregate_pubkey(mc, pubkey_list)) {
         return 0;
     }
@@ -447,7 +447,7 @@ void musig2_context_free(musig2_context *mc) {
     }
 }
 
-void musig2_context_sig_free(musig2_context_signer *mcs) {
+void musig2_context_signer_free(musig2_context_signer *mcs) {
 
     int l;
     for (l = mcs->state * V; l < mcs->mc.nr_messages * V; l++) {

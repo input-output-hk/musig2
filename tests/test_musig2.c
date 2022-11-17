@@ -3,7 +3,7 @@ extern "C" {
 #include "../src/libmusig2.h"
 #include "config.h"
 
-int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_participants) {
+int test_helper_setup(musig2_context_signer *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_participants) {
     int i, j, k, l;
     int err;
 
@@ -33,7 +33,7 @@ int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serializ
     return 1;
 }
 
-int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, musig2_context_signer *mcs_list) {
+int test_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, musig2_context_signer *mcs_list) {
     /**** Aggregate the public keys and batch commitments for each signer ****/
     int i;
     int cnt = 0;
@@ -45,7 +45,7 @@ int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned
     return 1;
 }
 
-int musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature *mps, int nr_participants) {
+int test_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature *mps, int nr_participants) {
     int i, err;
     for (i = 0; i < nr_participants; i++) {
         /* Generate the partial signatures */
@@ -57,15 +57,15 @@ int musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature
     return 1;
 }
 
-int musig2_helper_verify(secp256k1_context *ctx, secp256k1_pubkey aggr_pubkey, const unsigned char *signature, const unsigned char *msg, int msg_len ){
+int test_helper_verify(secp256k1_context *ctx, secp256k1_pubkey aggr_pubkey, const unsigned char *signature, const unsigned char *msg, int msg_len ){
     secp256k1_xonly_pubkey xonly_aggr_pubkey;
     assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_aggr_pubkey, nullptr, &aggr_pubkey)) ;
 
     return secp256k1_schnorrsig_verify(ctx, signature, msg, msg_len, &xonly_aggr_pubkey ) ;
 }
 
-#include "functiontest.c"
-#include "serdetest.c"
+#include "function_tests.c"
+#include "serde_tests.c"
 }
 
 int main(int argc, char* argv[]){

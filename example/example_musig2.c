@@ -1,4 +1,4 @@
-#include "helpermusig2.c"
+#include "helper_musig2.c"
 
 int main(void) {
 
@@ -22,43 +22,56 @@ int main(void) {
 
     /*** Signer - Initialize, Serialize, Precompute ***/
     printf("___________________________ Setup signers _________________________________ \n");
-    if (!musig2_setup(mcs_list, serialized_pubkey_list, serialized_batch_list)) {
-        musig2_free(mcs_list);
+    if (!musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list)) {
+        musig2_helper_destroy_context(mcs_list);
         return -1;
-    }/*************************************************/
+    }
+    /**************************************************/
 
 
     /*** STATE 1 - Partial signatures, Aggregation, Verification ***/
     printf("\n_________________________________ STATE_1 _________________________________ \n");
+
     /*** Generate partial signatures ***/
-    if (!musig2_signing(mps1, mcs_list, MSG_1, MSG_1_LEN)) {
-        musig2_free(mcs_list);
+    if (!musig2_helper_sign(mps1, mcs_list, MSG_1, MSG_1_LEN)) {
+        musig2_helper_destroy_context(mcs_list);
         return -1;
     }
+
     /*** Aggregate signatures ***/
-    if (!musig2_aggregate(mps1, signature1)) {
-        musig2_free(mcs_list);
+    if (!musig2_helper_aggregate(mps1, signature1)) {
+        musig2_helper_destroy_context(mcs_list);
         return -1;
     }
+
     /*** Verify MuSig2 for MSG_1 ***/
-    if (!musig2_verify_signature(signature1, serialized_pubkey_list, MSG_1, MSG_1_LEN)) {
-        musig2_free(mcs_list);
+    if (!musig2_helper_verify(signature1, serialized_pubkey_list, MSG_1, MSG_1_LEN)) {
+        musig2_helper_destroy_context(mcs_list);
         return -1;
-    }/**************************************************************/
+    }
+    /***************************************************************/
 
 
     /*** STATE 2 - Partial signatures, Aggregation, Verification ***/
     printf("\n_________________________________ STATE_2 _________________________________ \n");
-    /*** Generate partial signatures ***/
-    int result = musig2_signing(mps2, mcs_list, MSG_2, MSG_2_LEN);
-    musig2_free(mcs_list);
-    if (!result) { return -1; }
-    /*** Aggregate signatures ***/
-    if (!musig2_aggregate(mps2, signature2)) { return -1; }
-    /*** Verify MuSig2 for MSG_2 ***/
-    if (!musig2_verify_signature(signature2, serialized_pubkey_list, MSG_2, MSG_2_LEN)) { return -1; }
-    /***************************************************************/
 
+    /*** Generate partial signatures ***/
+    int result = musig2_helper_sign(mps2, mcs_list, MSG_2, MSG_2_LEN);
+    musig2_helper_destroy_context(mcs_list);
+    if (!result) {
+        return -1;
+    }
+
+    /*** Aggregate signatures ***/
+    if (!musig2_helper_aggregate(mps2, signature2)) {
+        return -1;
+    }
+
+    /*** Verify MuSig2 for MSG_2 ***/
+    if (!musig2_helper_verify(signature2, serialized_pubkey_list, MSG_2, MSG_2_LEN)) {
+        return -1;
+    }
+    /***************************************************************/
 
     return 0;
 }
