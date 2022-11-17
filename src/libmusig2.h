@@ -67,7 +67,7 @@ typedef struct{
 
 /** Initialize a musig2 signer.
  *
- *  Returns: 0 if signer initialisation fails, 1 otherwise.
+ *  Returns: 0 if key generation fails, -1 if batch commitments fail, and 1 otherwise.
  *
  *  In/Out: mcs:            a musig2_context_signer object
  *  In:     nr_messages:    the number of messages
@@ -78,7 +78,8 @@ int musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
 
 /** Serialize the shareable content in compressed (33-byte) form.
  *
- *  Returns: If all content serialized successfully, it returns 1, 0 otherwise.
+ *  Returns: If all content serialized successfully, it returns 1, if pubkey cannot be obtained
+ *           returns 0, if batch commitments fail, returns -1.
  *
  *  In/Out: serialized_pubkey:      33-byte serialized public key of signer.
  *          serialized_batch_list:  the list of 33-byte serialized commitments.
@@ -90,28 +91,9 @@ int musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
  * */
 int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
 
-/** Aggregate the given list of public keys.
- *
- *  Returns: 1 if keys aggregated successfully, 0 otherwise.
- *
- *  In/Out: mcs:            a musig2_context object
- *  In:     pubkey_list:    list of public keys.
- *          nr_signers:     the number of signers.
- * */
-int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pubkey_list);
-
-/** Aggregate the given list of batch commitments of `n` signers for `V` into `aggr_R_list`
- *
- *  Returns: 1 if aggr_R_list is created successfully, 0 otherwise.
- *
- *  In/Out: mcs:            a musig2_context object
- *  In:     batch_list:     list of batch commitments.
- * */
-int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V], int state);
-
 /** Signer precomputation before signing round.
  *
- *  Returns: 1 if precomputation is successful, 0 otherwise.
+ *  Returns: 1 if precomputation is successful, 0 if key aggregation fails, -1 if R aggregation fails.
  *
  *  In/Out: mc:                     a musig2_context object
  *  In:     serialized_pubkey_list: a string including the list of serialized public keys from all signers.
@@ -130,7 +112,8 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
 
 /** Generate partial signature.
  *
- *  Returns: 1 if partial signature is created successfully, -1 if the corresponding commitment is NULL, 0 otherwise.
+ *  Returns: 1 if partial signature is created successfully, -1 if the corresponding commitment is NULL,
+ *          -2 if calculation of R fails, and 0 if partial signature cannot be set.
  *
  *  In/Out: mcs:            a musig2_context object
  *  In:     msg:            the message to be signed.
@@ -140,7 +123,7 @@ int musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const
 
 /** Aggregate the given list of partial signatures.
  *
- *  Returns: 1 if musig2 signature is created successfully, -1 if not all the `R` values are equal, and 0 otherwise.
+ *  Returns: 1 if multi-signature is created successfully, -1 if not all the `R` values are equal, and 0 if aggregation fails.
  *
  *  In/Out: signature:          an aggregated signature
  *  In:     mps:                a list of musig2_context_signature objects
@@ -150,7 +133,7 @@ int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *s
 
 /** Prepare verifier.
  *
- *  Returns: 1 if verifier prepared, 0 otherwise.
+ *  Returns: 1 if verifier prepared, 0 if public key aggregation fails.
  *
  *  In/Out: aggr_pubkey:            an aggregated signature
  *  In:     serialized_pubkey_list: a string including the list of serialized public keys from all signers.
@@ -158,8 +141,6 @@ int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *s
  *
  *  Prepares verification for schnorr verifier function. Aggregates the public key and serialises
  *  to the format accepted by schnorr_verify. Fails if public key aggregation is not succeeded.
- *
- *  Note that
  * */
 int musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned char *serialized_pubkey_list, int nr_signers);
 
@@ -170,6 +151,14 @@ int musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned char *seri
  *          signature:      musig2_context_signer object.
  *          msg:            message of the signature to be verified.
  *          msg_len:        length of the message.
+ *
+ *  Note that this function could also aggregate public keys and there would be no need to have a function
+ *  to prepare verifier which basically aggregates given list of public keys. However, musig2 should be verifiable
+ *  without the knowledge of the signers' public keys.
+ *
+ *  Furthermore, musig2 generates a signature which is indistinguishable from a normal schnorr signature that
+ *  libsecp generates. Therefore, verification should be done with the inputs of schnorr verify function which
+ *  are the signature, message, message length, and the public key.
  * */
 int musig2_verify(musig2_aggr_pubkey *aggr_pubkey, unsigned char *signature, const unsigned char *msg, int msg_len);
 
