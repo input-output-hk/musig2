@@ -13,7 +13,7 @@ TEST (musig2, pk_list_serialize_deserialize) {
     size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
     int i, err;
 
-    err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
+    err = test_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     for (i = 0; i < NR_SIGNERS; i++)
@@ -38,7 +38,7 @@ TEST (musig2, commitments_serialize_deserialize) {
     size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
     int i, err;
 
-    err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
+    err = test_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     for (i = 0; i < NR_SIGNERS * V * NR_MESSAGES; i++)

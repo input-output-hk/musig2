@@ -156,6 +156,8 @@ int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *s
  *
  *  Prepares verification for schnorr verifier function. Aggregates the public key and serialises
  *  to the format accepted by schnorr_verify. Fails if public key aggregation is not succeeded.
+ *
+ *  Note that
  * */
 int musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned char *serialized_pubkey_list, int nr_signers);
 
@@ -184,4 +186,4 @@ void musig2_context_free(musig2_context *mc);
 
 /** Free memory allocated in MuSig2 signer context
  * */
-void musig2_context_sig_free(musig2_context_signer *mcs);
+void musig2_context_signer_free(musig2_context_signer *mcs);

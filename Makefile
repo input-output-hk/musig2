@@ -25,21 +25,21 @@ lib_musig2: build/musig2.o
 	$(RANLIB) build/libmusig2.a
 
 test: lib_musig2
-	rm -rf test_run
-	mkdir test_run
-	$(CC) $(CPPFLAGS) $(GTEST_LDLIBS) tests/testmusig2.c -L./build -lmusig2 -o test_run/test
+	rm -rf runtest
+	mkdir runtest
+	$(CC) $(CPPFLAGS) $(GTEST_LDLIBS) tests/test_musig2.c -L./build -lmusig2 -o runtest/test
 
 example: lib_musig2
-	rm -rf example_run
-	mkdir example_run
-	$(CC) $(CFLAGS) $(LDLIBS) examplemusig2.c -L./build -lmusig2 -o example_run/example
+	rm -rf runexample
+	mkdir runexample
+	$(CC) $(CFLAGS) $(LDLIBS) example/example_musig2.c -L./build -lmusig2 -o runexample/example
 
 run_tests: test example
-	example_run/example
-	test_run/test
+	examplerun/example
+	runtest/test
 
 valgrind: example
-	valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes example_run/example
+	valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes runexample/example
 
 clean:
-	rm -rf *.o build test_run example_run
+	rm -rf *.o build runtest runexample

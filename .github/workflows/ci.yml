@@ -39,16 +39,16 @@ jobs:
       - name: Build gtests
         run: |
           mkdir build
-          mkdir test_run
-          mkdir example_run
+          mkdir runtest
+          mkdir runexample
           clang -c -g src/libmusig2.c -o build/musig2.o
           ar rcs build/libmusig2.a build/musig2.o
           ranlib build/libmusig2.a
-          clang -x c++ -std=c++11 tests/testmusig2.c -g -o test_run/test -L./build -lmusig2 -lsecp256k1 -lstdc++ -lgtest -lgtest_main -pthread
-          clang examplemusig2.c -g -o example_run/example -L./build -lmusig2 -lsecp256k1
+          clang -x c++ -std=c++11 tests/test_musig2.c -g -o runtest/test -L./build -lmusig2 -lsecp256k1 -lstdc++ -lgtest -lgtest_main -pthread
+          clang example/examplemusig2.c -g -o runexample/example -L./build -lmusig2 -lsecp256k1
 
       - name: Run gtests
-        run: test_run/test
+        run: runtest/test
 
       - name: Run Valgrind
-        run: valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes example_run/example
+        run: valgrind --tool=memcheck --error-exitcode=1 --leak-check=full --show-reachable=yes runexample/example
