@@ -11,14 +11,14 @@ Run the example with examplemusig2.c
 
 ```shell
 make example
-./examplerun/example
+./example_run/example
 ```
 
 Run the Google tests with
 
 ```shell
 make test
-./runtest/test
+./test_run/test
 ```
 
 Note that you need to install *Google Test* by following the instructions given [here](https://google.github.io/googletest/).

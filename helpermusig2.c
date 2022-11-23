@@ -1,7 +1,7 @@
-#include "../src/libmusig2.h"
-#include "../tests/config.h"
+#include "src/libmusig2.h"
+#include "tests/config.h"
 
-int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list){
+int musig2_setup(musig2_context_signer *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list){
 
     int i, j, k, l;
     /**** Initialization ****/
@@ -52,7 +52,7 @@ int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serializ
     return 1;
 }
 
-int musig2_helper_sign(musig2_context_signature *mps, musig2_context_signer *mcs_list, const unsigned char *msg, int msg_len) {
+int musig2_signing(musig2_context_signature *mps, musig2_context_signer *mcs_list, const unsigned char *msg, int msg_len) {
 
     printf("\nPartial Signatures ________________________________________________________ \n");
     int i;
@@ -70,7 +70,7 @@ int musig2_helper_sign(musig2_context_signature *mps, musig2_context_signer *mcs
     return 1;
 }
 
-int musig2_helper_aggregate(musig2_context_signature *mps, unsigned char *signature) {
+int musig2_aggregate(musig2_context_signature *mps, unsigned char *signature) {
 
     printf("\nAggregation _______________________________________________________________ \n");
     if (!musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS)){
@@ -87,7 +87,7 @@ int musig2_helper_aggregate(musig2_context_signature *mps, unsigned char *signat
     return 1;
 }
 
-int musig2_helper_verify(unsigned char *signature, unsigned char *serialized_pubkey_list, const unsigned char *msg, int msg_len){
+int musig2_verify_signature(unsigned char *signature, unsigned char *serialized_pubkey_list, const unsigned char *msg, int msg_len){
 
     printf("\nVerification ______________________________________________________________ \n");
 
@@ -109,9 +109,9 @@ int musig2_helper_verify(unsigned char *signature, unsigned char *serialized_pub
     return 1;
 }
 
-void musig2_helper_destroy_context(musig2_context_signer *mcs_list){
+void musig2_free(musig2_context_signer *mcs_list){
     int i;
     for (i = 0; i < NR_SIGNERS; i++) {
-        musig2_context_signer_free(&mcs_list[i]);
+        musig2_context_sig_free(&mcs_list[i]);
     }
 }
