@@ -1,7 +1,6 @@
 #include "libmusig2.h"
 
 static int musig2_key_gen(musig2_context_signer *mcs) {
-
     unsigned char x[MUSIG2_SCALAR_BYTES];
 
     while (1) {
@@ -80,8 +79,8 @@ static int musig2_calc_R(musig2_context *mc, secp256k1_xonly_pubkey *aggr_R, int
 
     secp256k1_pubkey tweakable_Rb_list[V];
     secp256k1_pubkey *Rb_list[V];
-    secp256k1_pubkey temp_pk;
-    secp256k1_xonly_pubkey temp_xonly_pk;
+    secp256k1_pubkey temp_pubkey;
+    secp256k1_xonly_pubkey temp_xonly_pubkey;   // temp value to store xonly point
     int j;
 
     for (j = 0; j < V; j++)
@@ -102,13 +101,12 @@ static int musig2_calc_R(musig2_context *mc, secp256k1_xonly_pubkey *aggr_R, int
     }
 
     /* R = SUM ({ R_j * b^(j-1) }) */
-    if (!secp256k1_ec_pubkey_combine(mc->ctx, &temp_pk, (const secp256k1_pubkey *const *)Rb_list, V)) {
+    if (!secp256k1_ec_pubkey_combine(mc->ctx, &temp_pubkey, (const secp256k1_pubkey *const *)Rb_list, V))
         return 0;
-    }
 
     /* Get x_only versions and parities of aggregated public key and aggregated R */
-    assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pk, &mc->pk_parity, &mc->aggr_pubkey));
-    assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, aggr_R, R_parity, &temp_pk));
+    assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pubkey, &mc->pk_parity, &mc->aggr_pubkey));
+    assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, aggr_R, R_parity, &temp_pubkey));
 
     /* If just the parity of R is 1, negate b_list and change the parity of R */
     if (*R_parity == 1 && mc->pk_parity == 0){
@@ -176,11 +174,11 @@ static int musig2_set_parsig(musig2_context_signer *mcs, unsigned char *partial_
 
 static int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pubkey_list) {
 
-    secp256k1_pubkey tweakable_pk_list[mc->nr_signers];
+    secp256k1_pubkey tweakable_pubkey_list[mc->nr_signers];
     const secp256k1_pubkey* pubkey_pointer_list[mc->nr_signers];
-    secp256k1_xonly_pubkey temp_xonly_pk;
+    secp256k1_xonly_pubkey temp_xonly_pubkey;
     unsigned char temp_a[MUSIG2_SCALAR_BYTES];
-    unsigned char serialized_pk_list[mc->nr_signers][MUSIG2_AGGR_PUBKEY_BYTES];
+    unsigned char serialized_pubkey_list[mc->nr_signers][MUSIG2_AGGR_PUBKEY_BYTES];
     int i;
 
     /* Allocate memory for L */
@@ -189,23 +187,22 @@ static int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pubkey_
     /* Multiply pk_i with a_i. Store in temp_pk_list[i]. */
     for (i = 0; i < mc->nr_signers; i++) {
         /* Copy the current public key into temp_pk_list */
-        memcpy(tweakable_pk_list[i].data, pubkey_list[i].data, MUSIG2_PUBKEY_BYTES_FULL);
-        pubkey_pointer_list[i] = &tweakable_pk_list[i];
-        assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pk, NULL, pubkey_pointer_list[i]));
-        secp256k1_xonly_pubkey_serialize(mc->ctx, serialized_pk_list[i], &temp_xonly_pk);
+        memcpy(tweakable_pubkey_list[i].data, pubkey_list[i].data, MUSIG2_PUBKEY_BYTES_FULL);
+        pubkey_pointer_list[i] = &tweakable_pubkey_list[i];
+        assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pubkey, NULL, pubkey_pointer_list[i]));
+        secp256k1_xonly_pubkey_serialize(mc->ctx, serialized_pubkey_list[i], &temp_xonly_pubkey);
 
         /* Update L */
-        memcpy(&mc->L[i * MUSIG2_AGGR_PUBKEY_BYTES], serialized_pk_list[i], MUSIG2_AGGR_PUBKEY_BYTES);
+        memcpy(&mc->L[i * MUSIG2_AGGR_PUBKEY_BYTES], serialized_pubkey_list[i], MUSIG2_AGGR_PUBKEY_BYTES);
     }
 
     for (i = 0; i < mc->nr_signers; i++) {
         /* Get the exponent `a` of current public key */
-        musig2_key_agg_coef(mc, temp_a, serialized_pk_list[i]);
+        musig2_key_agg_coef(mc, temp_a, serialized_pubkey_list[i]);
 
         /* Compute `pk_i * a_i` */
-        if (!secp256k1_ec_pubkey_tweak_mul(mc->ctx, (secp256k1_pubkey*)pubkey_pointer_list[i], temp_a)) {
+        if (!secp256k1_ec_pubkey_tweak_mul(mc->ctx, (secp256k1_pubkey*)pubkey_pointer_list[i], temp_a))
             return 0;
-        }
     }
 
     /* Aggregate the public keys */
@@ -325,8 +322,8 @@ int musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const
     index = V * mcs->state;
     for (j = 0; j < V; j++) {
         if (mcs->comm_list[index + j] == NULL) {
-            return -1;
-        }
+        return -1;
+    }
     }
 
     assert(secp256k1_keypair_xonly_pub(mcs->mc.ctx, &temp_xonly_pubkey, NULL, &mcs->keypair));
@@ -361,7 +358,6 @@ int musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const
 }
 
 int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *signature, int nr_signatures) {
-
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     int i;
 

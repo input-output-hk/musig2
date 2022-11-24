@@ -67,7 +67,7 @@ typedef struct{
 
 /** Initialize a musig2 signer.
  *
- *  Returns: 0 if key generation fails, -1 if batch commitments fail, and 1 otherwise.
+ *  Returns: 0 if signer initialisation fails, 1 otherwise.
  *
  *  In/Out: mcs:            a musig2_context_signer object
  *  In:     nr_messages:    the number of messages
@@ -75,6 +75,21 @@ typedef struct{
  *  Generates the keypair and creates a list of batch commitments for all defined states.
  */
 int musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
+
+/** Serialize the shareable content in compressed (33-byte) form.
+ *
+ *  Returns: If all content serialized successfully, it returns 1, 0 otherwise.
+ *
+ *  In/Out: serialized_pubkey:      33-byte serialized public key of signer.
+ *          serialized_batch_list:  the list of 33-byte serialized commitments.
+ *  In:     mcs:                    a musig2_context_signer object
+ *
+ *  Takes musig2_context_signer as input which includes the public key and the commitment list of the signer.
+ *  Public key and the commitments are stored within keypair type in the struct, thus before serialization,
+ *  public key content is extracted from keypair for both pubkey and commitments.
+ * */
+int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
+
 
 /** Serialize the shareable content in compressed (33-byte) form.
  *
