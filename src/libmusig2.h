@@ -69,8 +69,8 @@ typedef struct{
  *
  *  Returns: 0 if signer initialisation fails, 1 otherwise.
  *
- *  In/Out: mcs:            a musig2_context_signer object
  *  In:     nr_messages:    the number of messages
+ *  Out:    mcs:            a musig2_context_signer object
  *
  *  Generates the keypair and creates a list of batch commitments for all defined states.
  */
@@ -80,25 +80,9 @@ int musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
  *
  *  Returns: If all content serialized successfully, it returns 1, 0 otherwise.
  *
- *  In/Out: serialized_pubkey:      33-byte serialized public key of signer.
- *          serialized_batch_list:  the list of 33-byte serialized commitments.
  *  In:     mcs:                    a musig2_context_signer object
- *
- *  Takes musig2_context_signer as input which includes the public key and the commitment list of the signer.
- *  Public key and the commitments are stored within keypair type in the struct, thus before serialization,
- *  public key content is extracted from keypair for both pubkey and commitments.
- * */
-int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
-
-
-/** Serialize the shareable content in compressed (33-byte) form.
- *
- *  Returns: If all content serialized successfully, it returns 1, if pubkey cannot be obtained
- *           returns 0, if batch commitments fail, returns -1.
- *
- *  In/Out: serialized_pubkey:      33-byte serialized public key of signer.
+ *  Out:    serialized_pubkey:      33-byte serialized public key of signer.
  *          serialized_batch_list:  the list of 33-byte serialized commitments.
- *  In:     mcs:                    a musig2_context_signer object
  *
  *  Takes musig2_context_signer as input which includes the public key and the commitment list of the signer.
  *  Public key and the commitments are stored within keypair type in the struct, thus before serialization,
@@ -114,7 +98,6 @@ int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char
  *  In:     serialized_pubkey_list: a string including the list of serialized public keys from all signers.
  *          serialized_batch_list:  a string including the list of serialized batch commitments of all signers for all states.
  *          nr_signers:             the total number of signers/keys submitted.
- *          nr_messages:            the number of messages to be signed.
  *
  *  Prepares the signer for partial signature generation for a batch of `nr_messages`.
  *  Aggregates the public keys and the batch commitments for all messages to be signed.
@@ -123,16 +106,17 @@ int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char
  *  serialized in compressed form (a public key is represented with 33 bytes in compressed form).
  *  Returns 1 if all public keys and all commitments aggregated successfully.
  * */
-int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
+int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_signers);
 
 /** Generate partial signature.
  *
  *  Returns: 1 if partial signature is created successfully, -1 if the corresponding commitment is NULL,
  *          -2 if calculation of R fails, and 0 if partial signature cannot be set.
  *
- *  In/Out: mcs:            a musig2_context object
- *  In:     msg:            the message to be signed.
+ *  In:     mcs:            a musig2_context object
+ *          msg:            the message to be signed.
  *          msg_len:        the length of the message.
+ *  Out:    mps:            a musig2_context_signature object
  * */
 int musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const unsigned char *msg, int msg_len);
 
@@ -140,9 +124,9 @@ int musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const
  *
  *  Returns: 1 if multi-signature is created successfully, -1 if not all the `R` values are equal, and 0 if aggregation fails.
  *
- *  In/Out: signature:          an aggregated signature
  *  In:     mps:                a list of musig2_context_signature objects
  *          nr_signatures:      the number of signatures.
+ *  Out:    signature:          an aggregated signature
  * */
 int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *signature, int nr_signatures);
 
@@ -150,9 +134,9 @@ int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *s
  *
  *  Returns: 1 if verifier prepared, 0 if public key aggregation fails.
  *
- *  In/Out: aggr_pubkey:            an aggregated signature
  *  In:     serialized_pubkey_list: a string including the list of serialized public keys from all signers.
  *          nr_signers:             the number of signers.
+ *  Out:    aggr_pubkey:            the aggregated signature
  *
  *  Prepares verification for schnorr verifier function. Aggregates the public key and serialises
  *  to the format accepted by schnorr_verify. Fails if public key aggregation is not succeeded.

@@ -38,7 +38,7 @@ int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned
     int i;
     int cnt = 0;
     for (i = 0; i < NR_SIGNERS; i++)
-        cnt += musig2_signer_precomputation(&mcs_list[i].mc, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES);
+        cnt += musig2_signer_precomputation(&mcs_list[i].mc, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     if (cnt != NR_SIGNERS) {
         return cnt;
     }

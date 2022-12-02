@@ -60,7 +60,7 @@ int main(void) {
     /**** Aggregate the public keys and batch commitments for each signer for all messages ****/
     printf("\n______ Precomputation _____________________________________________________ \n");
     for (i = 0; i < NR_SIGNERS; i++) {
-        if (!musig2_signer_precomputation(&mcs_list[i].mc, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS, NR_MESSAGES)) {
+        if (!musig2_signer_precomputation(&mcs_list[i].mc, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS)) {
             printf("  Signer %d: .........................................................[FAIL]\n", i + 1);
             musig2_context_sig_free(&mcs_list[k]);
             return -1;

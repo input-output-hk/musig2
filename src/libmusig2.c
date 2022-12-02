@@ -17,12 +17,12 @@ static int musig2_key_gen(musig2_context_signer *mcs) {
 static int musig2_batch_commitment(musig2_context_signer *mcs) {
 
     unsigned char x[MUSIG2_SCALAR_BYTES];
-    int i = 0, j, k;
+    int i, j, k;
 
     mcs->comm_list = malloc(sizeof (secp256k1_keypair*) * mcs->mc.nr_messages * V);
 
     /* Create nr_messages * V batch commitments for signer */
-    for (k = 0; k < mcs->mc.nr_messages; k++) {
+    for (k = 0, i = 0; k < mcs->mc.nr_messages; k++) {
         for (j = 0; j < V; j++, i++) {
             mcs->comm_list[i] = malloc(sizeof(secp256k1_keypair));
             while (1) {
@@ -273,20 +273,20 @@ int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char
     return 1;
 }
 
-int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages){
+int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_signers){
 
     int i, j, k, ind;
-    secp256k1_pubkey batch_list[nr_messages][nr_signers][V];   // Stores the batches of signers
+    secp256k1_pubkey batch_list[mc->nr_messages][nr_signers][V];   // Stores the batches of signers
     secp256k1_pubkey pubkey_list[nr_signers];
 
     mc->nr_signers = nr_signers;
-    mc->aggr_R_list = malloc(sizeof (secp256k1_pubkey*) * nr_messages * V);
+    mc->aggr_R_list = malloc(sizeof (secp256k1_pubkey*) * mc->nr_messages * V);
 
 
     /* Parse the batch commitments of the signers */
     for (i = 0; i < nr_signers; i++) {
         assert(secp256k1_ec_pubkey_parse(mc->ctx, &pubkey_list[i], &serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], MUSIG2_PUBKEY_BYTES_COMPRESSED));
-        for (k = 0; k < nr_messages; k++) {
+        for (k = 0; k < mc->nr_messages; k++) {
             for (j = 0; j < V; j++) {
                 ind = (k * nr_signers * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED;
                 assert(secp256k1_ec_pubkey_parse(mc->ctx, &batch_list[k][i][j], &serialized_batch_list[ind], MUSIG2_PUBKEY_BYTES_COMPRESSED));
@@ -299,7 +299,7 @@ int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_p
     }
 
     /* Aggregate R for each message to be signed. */
-    for (k = 0; k < nr_messages; k++) {
+    for (k = 0; k < mc->nr_messages; k++) {
         if (!musig2_aggregate_R(mc, batch_list[k], k)) {
             return -1;
         }
