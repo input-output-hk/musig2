@@ -10,166 +10,162 @@
 
 
 #define V                                   2           // Number of nonce values
-#define MUSIG2_SCALAR_BYTES                 32          // SCALAR BYTES
-#define MUSIG2_PARSIG_BYTES                 32          // PARTIAL SIGNATURE BYTES
-#define MUSIG2_AGGR_PUBKEY_BYTES            32          // XONLY PUBLIC KEY BYTES
-#define MUSIG2_PUBKEY_BYTES_COMPRESSED      33          // COMPRESSED PUBLIC KEY BYTES
-#define MUSIG2_PUBKEY_BYTES_FULL            64          // FULL SIZE PUBLIC KEY BYTES
-#define MUSIG2_BYTES                        64          // SCHNORR SIGNATURE BYTES
+
+#define MUSIG2_SCALAR_BYTES                 32          // size of a scalar
+#define MUSIG2_PARSIG_BYTES                 32          // size of the musig2 partial signature
+#define MUSIG2_AGGR_PUBKEY_BYTES            32          // size of the musig2 public key equivalent of secp256k1_xonly_pubkey
+#define MUSIG2_PUBKEY_BYTES_COMPRESSED      33          // size of compressed public key where one extra byte represents the sign.
+#define MUSIG2_PUBKEY_BYTES_FULL            64          // size of uncompressed public key with full x and y coordinates
+#define MUSIG2_BYTES                        64          // size of the musig2 signature including the aggregate R and aggregate signature
 
 
-/** Type        : musig2_aggr_pubkey
- *  Purpose     : MuSig2 public key as secp256k1_xonly_pubkey.
-* */
+/** MuSig2 public key as secp256k1_xonly_pubkey
+ * */
 typedef secp256k1_xonly_pubkey musig2_aggr_pubkey;
 
-/** Struct      : musig2_context
- *  Purpose     : Stores the parameters of musig2.
- *  Parameters  : ctx: a secp256k1_context object.
- *              : aggr_pk: Aggregated public key.
- *              : aggr_R_list: The list of aggregated batch commitments for all states.
- *              : par_pk: Parity of aggregate pubkey.
- *              : nr_signers: The number of signers.
- *              : nr_messages: The number of messages.
- *              : L: Concatenation of x_only public keys of signers.
+/** musig2_context stores the parameters of musig2.
+ *  Parameters  : ctx:          a secp256k1_context object.
+ *              : aggr_pubkey:  Aggregated public key.
+ *              : aggr_R_list:  The list of aggregated batch commitments for all states.
+ *              : L:            Concatenation of x_only public keys of signers.
+ *              : pk_parity:    Parity of aggregate pubkey.
+ *              : nr_signers:   The number of signers.
+ *              : nr_messages:  The number of messages.
 * */
 typedef struct{
     secp256k1_context* ctx;
-    secp256k1_pubkey aggr_pk;
+    secp256k1_pubkey aggr_pubkey;
     secp256k1_pubkey **aggr_R_list;
-    int par_pk;
+    unsigned char *L;
+    int pk_parity;
     int nr_signers;
     int nr_messages;
-    unsigned char *L;
 }musig2_context;
 
-/** Struct      : musig2_context_sig
- *  Purpose     : Stores the parameters of musig2 signer.
- *  Parameters  : mc: a musig2_context object including the parameters of musig2.
- *              : comm_list: Batch commitment list of a signer.
- *              : keypair: Public and secret keys of signers.
- *              : state: The state of musig2.
+/** musig2_context_signer stores the parameters of musig2 signer.
+ *  Parameters  : mc:           a musig2_context object including the parameters of musig2.
+ *              : comm_list:    Batch commitment list of a signer.
+ *              : keypair:      Public and secret keys of signers.
+ *              : state:        The state of musig2.
  * */
 typedef struct {
     musig2_context mc;
     secp256k1_keypair **comm_list;
     secp256k1_keypair keypair;
     int state;
-}musig2_context_sig;
+}musig2_context_signer;
 
-/** Struct      : musig2_partial_signature
- *  Purpose     : Stores the parameters to aggregate a partial signature.
- *  Parameters  : sig: The partial signature of a signer.
- *              : R: The aggregated commitment of the signature.
+/** musig2_context_signature stores the parameters to aggregate a partial signature.
+ *  Parameters  : signature: The partial signature of a signer.
+ *              : R:         The aggregated commitment of the signature.
  * */
 typedef struct{
-    unsigned char sig[MUSIG2_PARSIG_BYTES];
+    unsigned char signature[MUSIG2_PARSIG_BYTES];
     secp256k1_xonly_pubkey R;
-}musig2_partial_signature;
+}musig2_context_signature;
 
-/*** Free memory allocated in MuSig2 context ***/
+
+/** Initialize a musig2 signer.
+ *
+ *  Returns: 0 if signer initialisation fails, 1 otherwise.
+ *
+ *  In:     nr_messages:    the number of messages
+ *  Out:    mcs:            a musig2_context_signer object
+ *
+ *  Generates the keypair and creates a list of batch commitments for all defined states.
+ */
+int musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
+
+/** Serialize the shareable content in compressed (33-byte) form.
+ *
+ *  Returns: If all content serialized successfully, it returns 1, 0 otherwise.
+ *
+ *  In:     mcs:                    a musig2_context_signer object
+ *  Out:    serialized_pubkey:      33-byte serialized public key of signer.
+ *          serialized_batch_list:  the list of 33-byte serialized commitments.
+ *
+ *  Takes musig2_context_signer as input which includes the public key and the commitment list of the signer.
+ *  Public key and the commitments are stored within keypair type in the struct, thus before serialization,
+ *  public key content is extracted from keypair for both pubkey and commitments.
+ * */
+int musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
+
+/** Signer precomputation before signing round.
+ *
+ *  Returns: 1 if precomputation is successful, 0 if key aggregation fails, -1 if R aggregation fails.
+ *
+ *  In/Out: mc:                     a musig2_context object
+ *  In:     serialized_pubkey_list: a string including the list of serialized public keys from all signers.
+ *          serialized_batch_list:  a string including the list of serialized batch commitments of all signers for all states.
+ *          nr_signers:             the total number of signers/keys submitted.
+ *
+ *  Prepares the signer for partial signature generation for a batch of `nr_messages`.
+ *  Aggregates the public keys and the batch commitments for all messages to be signed.
+ *
+ *  It takes serialized_pubkey_list and serialized_batch_list as parameters and they are expected to be
+ *  serialized in compressed form (a public key is represented with 33 bytes in compressed form).
+ *  Returns 1 if all public keys and all commitments aggregated successfully.
+ * */
+int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_signers);
+
+/** Generate partial signature.
+ *
+ *  Returns: 1 if partial signature is created successfully, -1 if the corresponding commitment is NULL,
+ *          -2 if calculation of R fails, and 0 if partial signature cannot be set.
+ *
+ *  In:     mcs:            a musig2_context object
+ *          msg:            the message to be signed.
+ *          msg_len:        the length of the message.
+ *  Out:    mps:            a musig2_context_signature object
+ * */
+int musig2_sign(musig2_context_signer *mcs, musig2_context_signature *mps, const unsigned char *msg, int msg_len);
+
+/** Aggregate the given list of partial signatures.
+ *
+ *  Returns: 1 if multi-signature is created successfully, -1 if not all the `R` values are equal, and 0 if aggregation fails.
+ *
+ *  In:     mps:                a list of musig2_context_signature objects
+ *          nr_signatures:      the number of signatures.
+ *  Out:    signature:          an aggregated signature
+ * */
+int musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigned char *signature, int nr_signatures);
+
+/** Prepare verifier.
+ *
+ *  Returns: 1 if verifier prepared, 0 if public key aggregation fails.
+ *
+ *  In:     serialized_pubkey_list: a string including the list of serialized public keys from all signers.
+ *          nr_signers:             the number of signers.
+ *  Out:    aggr_pubkey:            the aggregated signature
+ *
+ *  Prepares verification for schnorr verifier function. Aggregates the public key and serialises
+ *  to the format accepted by schnorr_verify. Fails if public key aggregation is not succeeded.
+ * */
+int musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned char *serialized_pubkey_list, int nr_signers);
+
+/** Verify given musig2 signature of given message with secp256k1_schnorrsig_verify.
+ *
+ *  Returns: If verification succeeds, it returns 1, 0 otherwise.
+ *  In:     aggr_pubkey:    verification key of the signature.
+ *          signature:      musig2_context_signer object.
+ *          msg:            message of the signature to be verified.
+ *          msg_len:        length of the message.
+ *
+ *  Note that this function could also aggregate public keys and there would be no need to have a function
+ *  to prepare verifier which basically aggregates given list of public keys. However, musig2 should be verifiable
+ *  without the knowledge of the signers' public keys.
+ *
+ *  Furthermore, musig2 generates a signature which is indistinguishable from a normal schnorr signature that
+ *  libsecp generates. Therefore, verification should be done with the inputs of schnorr verify function which
+ *  are the signature, message, message length, and the public key.
+ * */
+int musig2_verify(musig2_aggr_pubkey *aggr_pubkey, unsigned char *signature, const unsigned char *msg, int msg_len);
+
+
+/** Free memory allocated in MuSig2 context
+ * */
 void musig2_context_free(musig2_context *mc);
 
-/*** Free memory allocated in MuSig2 context ***/
-void musig2_context_sig_free(musig2_context_sig *mcs);
-
-/** Function    : musig2_init_signer
- *  Purpose     : Initializes a musig2 signer. Generates the keypair and creates a list of batch commitments for  signer.
- *                Returns 0 if signer initialisation fails, 1 otherwise.
- *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
- *              : IN        : ctx: A secp256k1_context object.
- *                          : nr_messages: The number of messages.
- * Returns      : 1/0.
+/** Free memory allocated in MuSig2 signer context
  * */
-int musig2_init_signer(musig2_context_sig *mcs, int nr_messages);
-
-/** Function    : musig2_aggregate_pubkey
- *  Purpose     : Aggregates the given list of public keys.
- *                Returns 1 if keys aggregated successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : mc: A musig2_context object including musig2 parameters.
- *              : IN        : pk_list: List of public keys.
- *                          : nr_signers: The number of signers.
- * Returns      : 1/0.
- * */
-int musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey *pk_list);
-
-/** Function    : musig2_aggregate_R
- *  Purpose     : Aggregates the given list of batch commitments of `n` signers for `V` into `aggr_R_list`.
- *                Returns 1 if aggr_R_list is created successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
- *              : IN        : batch_list: The list of batch commitments.
- * Returns      : 1/0.
- * */
-int musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batch_list[][V], int state);
-
-/** Function    : musig2_sign
- *  Purpose     : Starts the signature process for signer and calls `musig2_sign_partial`.
- *                Returns 1 if partial signature is created successfully, -1 if the corresponding commitment is NULL, 0 otherwise.
- *  Parameters  : IN/OUT    : mcs: A musig2_context_sig object including parameters of musig2 signer.
- *              : IN        : msg: The message to be signed.
- *                          : msg_len: The length of the message.
- * Returns      : 1/-1/0.
- * */
-int musig2_sign(musig2_context_sig *mcs, musig2_partial_signature *mps, const unsigned char *msg, int msg_len);
-
-/** Function    : musig2_aggregate_partial_sig
- *  Purpose     : Aggregates the given list of partial signatures. Sets the musig2 signature.
- *                Returns 1 if musig2 signature is created successfully, -1 if not all the `R` values are equal
- *                and 0 otherwise.
- *  Parameters  : IN/OUT    : signature: A musig2 signature.
- *              : IN        : ctx: secp256k1_context object.
- *                          : mps: The list of partial signatures and R values of signers.
- *                          : pk_list: The list of public keys.
- *                          : nr_signatures: The number of signatures.
- * Returns      : 1/0/-1.
- * */
-int musig2_aggregate_partial_sig(musig2_partial_signature *mps, unsigned char *signature, int nr_signatures);
-
-/** Function    : musig2_prepare_verifier
- *  Purpose     : Prepares verification for schnorr verifier function. Aggregates the public key and serialises
- *                to the format accepted by schnorr_verify.
- *  Parameters  : IN/OUT    : aggr_pk: serialised aggregated public key.
- *              : IN        : ctx: secp256k1_context object.
- *                          : pk_list: list of public keys from all signers
- *                          : nr_signers: the total number of signers/keys submitted.
- * */
-void musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pk, unsigned char *serialized_pk_list, int nr_signers);
-
-
-/** Function    : musig2_signer_precomputation
- *  Purpose     : Prepares the signer for partial signature generation for a batch of `nr_messages`.
- *                Aggregates the public keys and the batch commitments for all messages to be signed.
- *                It takes serialized_pk_list and serialized_batch_list as parameters and
- *                they are expected to be serialized in compressed form (a public key is represented with 33 bytes in compressed form).
- *                Returns 1 if public keys and commitments aggregated successfully, 0 otherwise.
- *  Parameters  : IN/OUT    : mc: musig2_context object.
- *              : IN        : serialized_pk_list: The string including the list of serialized public keys from all signers.
- *                          : serialized_batch_list: The string including the list of serialized batch commitments of all signers for all states.
- *                          : nr_signers: the total number of signers/keys submitted.
- *                          : nr_messages: the number of messages to be signed.
- * Returns      : 1/0.
- * */
-int musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pk_list, unsigned char *serialized_batch_list, int nr_signers, int nr_messages);
-
-/** Function    : musig2_serialise_shareable_context
- *  Purpose     : Serializes the shareable content in compressed (33-byte) form. Takes musig2_context_sig as input which includes the public key and the
- *                commitment list of the signer. Public key and the commitments are stored within keypair type in the struct, thus before serialization,
- *                public key content is extracted from keypair. If all content converted and serialized successfully, it returns 1, 0 otherwise.
- *  Parameters  : IN/OUT    : serialized_pubkey: 33-byte serialized public key.
- *                          : serialized_batch_list: The list of 33-byte serialized commitments.
- *              : IN        : mcs: musig2_context_sig object.
- * Returns      : 1/0.
- * */
-int musig2_serialise_shareable_context(musig2_context_sig *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
-
-/** Function    : musig2_verify
- *  Purpose     : Verifies given signature of given message with secp256k1_schnorrsig_verify.
-                  If verification succeeds, it returns 1, 0 otherwise.
- *  Parameters  : IN        : signature: musig2_context_sig object.
- *                          : msg: Message of the signature to be verified.
- *                          : msg_len: Length of the message.
- *                          : aggr_pk: Verification key of the signature.
- * Returns      : 1/0.
- * */
-int musig2_verify(unsigned char *signature, const unsigned char *msg, int msg_len, musig2_aggr_pubkey *aggr_pk);
-
+void musig2_context_sig_free(musig2_context_signer *mcs);
