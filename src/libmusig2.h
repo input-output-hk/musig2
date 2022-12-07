@@ -17,7 +17,7 @@
 #define MUSIG2_BYTES                        64          // size of the musig2 signature including the aggregate R and aggregate signature
 
 typedef enum musig2_error {
-    MUSIG2_OK = 0,
+    MUSIG2_OK = 1,
     MUSIG2_ERR_KEY_GEN,
     MUSIG2_ERR_BATCH_COMM,
     MUSIG2_ERR_AGGR_R,
