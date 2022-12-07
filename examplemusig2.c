@@ -152,7 +152,7 @@ int main(void) {
     if (res == MUSIG2_OK) {
         printf("  Aggregate .........................................................[DONE]\n");
         printf("  S .... ");
-        print_hex(&signature2[MUSIG2_AGGR_PUBKEY_BYTES], MUSIG2_SCALAR_BYTES);
+        print_hex(&signature2[MUSIG2_AGGR_PUBKEY_BYTES], MUSIG2_PARSIG_BYTES);
         printf("  R .... ");
         print_hex(signature2, MUSIG2_AGGR_PUBKEY_BYTES);
     }
