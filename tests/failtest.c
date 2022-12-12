@@ -14,24 +14,27 @@ extern "C" {
         err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
         ASSERT_EQ(err, MUSIG2_OK);
 
+        // Precomputation for less signers that succeeds
         for (i = 1; i < NR_SIGNERS; i++){
             err = musig2_signer_precomputation(&mcs_list[i].mc, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
             ASSERT_EQ(err, MUSIG2_OK);
         }
+        // Precomputation for a signer that fails
         err = musig2_signer_precomputation(&mcs_list[0].mc, serialized_pubkey_list, serialized_batch_list, more_signers);
         ASSERT_EQ(err, MUSIG2_ERR_PARSE_PK_COMM);
 
         // Generate partial signatures for `mcs_list[1], ..., mcs_list[NR_SIGNERS]`.
+        // Failing participant cannot sign.
         err = musig2_helper_sign(&mcs_list[1], mps, less_signers);
         ASSERT_EQ(err, MUSIG2_OK);
 
-        // Aggregate partial signatures for ``mcs_list[0], ..., mcs_list[NR_SIGNERS - 1]`.
+        // Aggregate partial signatures for ``mcs_list[0], ..., mcs_list[NR_SIGNERS]` will fail.
         err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
         ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
 
         // Verify the aggregated signature with secp256k1_schnorrsig_verify
-        // Verification should fail since the aggregated signature does not correspond to the aggregated public key.
-        err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+        // Verification should fail since signature aggregate fails.
+        err = musig2_helper_verify(ctx, mcs_list[1].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
         ASSERT_EQ(err, 0);
     }
 
