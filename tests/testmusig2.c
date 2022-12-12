@@ -12,7 +12,7 @@ int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serializ
 
         err = musig2_init_signer(&mcs_list[i],  NR_MESSAGES);
         if (err != MUSIG2_OK)
-            return 0;
+            return err;
         }
 
         /* *** Registration ****/
@@ -29,19 +29,19 @@ int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serializ
                     memcpy(&serialized_batch_list[(k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list[l],
                     MUSIG2_PUBKEY_BYTES_COMPRESSED);
     }
-    return 1;
+    return MUSIG2_OK;
 }
 
-int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, musig2_context_signer *mcs_list) {
+int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, musig2_context_signer *mcs_list, int nr_participants) {
     /**** Aggregate the public keys and batch commitments for each signer ****/
     int i;
     MUSIG2_ERROR err;
-    for (i = 0; i < NR_SIGNERS; i++){
-        err = musig2_signer_precomputation(&mcs_list[i].mc, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
+    for (i = 0; i < nr_participants; i++){
+        err = musig2_signer_precomputation(&mcs_list[i].mc, serialized_pubkey_list, serialized_batch_list, nr_participants);
         if (err != MUSIG2_OK)
-            return 0;
+            return err;
     }
-    return 1;
+    return MUSIG2_OK;
 }
 
 int musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature *mps, int nr_participants) {
@@ -51,10 +51,10 @@ int musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature
         /* Generate the partial signatures */
         err = musig2_sign(&mcs_list[i], &mps[i], MSG_1, MSG_1_LEN);
         if (err != MUSIG2_OK) {
-            return 0;
+            return err;
         }
     }
-    return 1;
+    return MUSIG2_OK;
 }
 
 int musig2_helper_verify(secp256k1_context *ctx, secp256k1_pubkey aggr_pubkey, const unsigned char *signature, const unsigned char *msg, int msg_len ){
@@ -65,6 +65,7 @@ int musig2_helper_verify(secp256k1_context *ctx, secp256k1_pubkey aggr_pubkey, c
 }
 
 #include "functiontest.c"
+#include "failtest.c"
 #include "serdetest.c"
 }
 

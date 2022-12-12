@@ -15,7 +15,7 @@ TEST (musig2, valid_signature) {
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments.
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Generate partial signatures for `less_signers`.
@@ -46,7 +46,7 @@ TEST (musig2, not_enough_signatures) {
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments.
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Generate partial signatures for `less_signers`.
@@ -77,7 +77,7 @@ TEST (musig2, non_corresponding_signers) {
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments for `mcs_list[1], ..., mcs_list[NR_SIGNERS]`.
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, &mcs_list[1]);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, &mcs_list[1], NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Generate partial signatures for `mcs_list[1], ..., mcs_list[NR_SIGNERS]`.
@@ -111,7 +111,7 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
     err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Aggregate public keys and batch commitments.
@@ -151,7 +151,7 @@ TEST (musig2, previous_state) {
     err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = musig2_helper_sign(mcs_list, mps1, NR_SIGNERS);
@@ -201,7 +201,7 @@ TEST (musig2, future_state) {
     err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // One of the signers will sign for a future state.
@@ -231,7 +231,7 @@ TEST (musig2, invalid_signer_key) {
     err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     // Flip a bit of a signer's keypair.
@@ -261,7 +261,7 @@ TEST (musig2, invalid_single_signature) {
     err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = musig2_helper_sign(mcs_list, mps, NR_SIGNERS);
@@ -294,7 +294,7 @@ TEST (musig2, aggregate_invalid_public_key) {
 
     // Flip a bit of one of the signers' public key.
     serialized_pubkey_list[0] ^= 1;
-    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     err = musig2_helper_sign(mcs_list, mps, NR_SIGNERS);

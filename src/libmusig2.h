@@ -18,24 +18,24 @@
 
 typedef enum musig2_error {
     MUSIG2_OK = 1,
-    MUSIG2_ERR_KEY_GEN,
-    MUSIG2_ERR_BATCH_COMM,
-    MUSIG2_ERR_AGGR_R,
-    MUSIG2_ERR_AGGR_PK,
-    MUSIG2_ERR_CALC_R,
-    MUSIG2_ERR_SET_PARSIG,
-    MUSIG2_ERR_CHECK_COMM,
-    MUSIG2_ERR_ADD_PARSIG,
-    MUSIG2_ERR_CMP_R,
-    MUSIG2_ERR_SER_PK,
-    MUSIG2_ERR_SER_COMM,
-    MUSIG2_INVALID,
-    KEY_GEN_FAILED,
-    BATCH_COMM_FAILED,
-    CALC_R_FAILED,
-    PARSIG_FAILED,
-    AGGR_R_FAILED,
-    AGGR_PK_FAILED,
+    MUSIG2_ERR_KEY_GEN,         // 2
+    MUSIG2_ERR_BATCH_COMM,      // 3
+    MUSIG2_ERR_AGGR_R,          // 4
+    MUSIG2_ERR_AGGR_PK,         // 5
+    MUSIG2_ERR_CALC_R,          // 6
+    MUSIG2_ERR_SET_PARSIG,      // 7
+    MUSIG2_ERR_CHECK_COMM,      // 8
+    MUSIG2_ERR_ADD_PARSIG,      // 9
+    MUSIG2_ERR_CMP_R,           // 10
+    MUSIG2_ERR_PARSE_PK_COMM,   // 11
+    MUSIG2_ERR_PARSE_COMM,      // 12
+    MUSIG2_INVALID,             // 13
+    KEY_GEN_FAILED,             // 14
+    BATCH_COMM_FAILED,          // 15
+    CALC_R_FAILED,              // 16
+    PARSIG_FAILED,              // 17
+    AGGR_R_FAILED,              // 18
+    AGGR_PK_FAILED,             // 19
 } MUSIG2_ERROR;
 
 
