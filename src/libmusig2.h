@@ -88,7 +88,7 @@ typedef struct{
 
 /** Initialize a musig2 signer.
  *
- *  Returns: 0 if signer initialisation fails, 1 otherwise.
+ *  Returns: MUSIG2_OK if signer initialisation fails, 1 otherwise.
  *
  *  In:     nr_messages:    the number of messages
  *  Out:    mcs:            a musig2_context_signer object
