@@ -248,23 +248,20 @@ MUSIG2_ERROR musig2_init_signer(musig2_context_signer *mcs, int nr_messages) {
     return MUSIG2_OK;
 }
 
-MUSIG2_ERROR musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]){
+void musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]){
     secp256k1_pubkey temp_pk;
     size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
     int i;
 
-    if (secp256k1_keypair_pub(mcs->mc.ctx, &temp_pk, &mcs->keypair))
-        secp256k1_ec_pubkey_serialize(mcs->mc.ctx, serialized_pubkey, &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
-    else
-        return MUSIG2_ERR_SER_PK;
+    if (secp256k1_keypair_pub(mcs->mc.ctx, &temp_pk, &mcs->keypair)) {
+        secp256k1_ec_pubkey_serialize(mcs->mc.ctx, serialized_pubkey, &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED);
+    }
 
-    for (i = 0; i < mcs->mc.nr_messages * V; i++)
-        if (secp256k1_keypair_pub(mcs->mc.ctx, &temp_pk, mcs->comm_list[i]))
-            secp256k1_ec_pubkey_serialize(mcs->mc.ctx, serialized_batch_list[i], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED );
-        else
-            return MUSIG2_ERR_SER_COMM;
-
-    return MUSIG2_OK;
+    for (i = 0; i < mcs->mc.nr_messages * V; i++) {
+        if (secp256k1_keypair_pub(mcs->mc.ctx, &temp_pk, mcs->comm_list[i])) {
+            secp256k1_ec_pubkey_serialize(mcs->mc.ctx, serialized_batch_list[i], &ser_size, &temp_pk, SECP256K1_EC_COMPRESSED);
+        }
+    }
 }
 
 MUSIG2_ERROR musig2_signer_precomputation(musig2_context *mc, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_signers){
@@ -291,11 +288,11 @@ MUSIG2_ERROR musig2_signer_precomputation(musig2_context *mc, unsigned char *ser
         return MUSIG2_ERR_AGGR_PK;
     }
     // Aggregate R for each message to be signed.
-    for (k = 0; k < mc->nr_messages; k++)
+    for (k = 0; k < mc->nr_messages; k++) {
         if (musig2_aggregate_R(mc, batch_list[k], k) != MUSIG2_OK) {
             return MUSIG2_ERR_AGGR_R;
         }
-
+    }
     return MUSIG2_OK;
 }
 

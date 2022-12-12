@@ -17,19 +17,17 @@ int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serializ
 
         /* *** Registration ****/
         for (i = 0; i < nr_participants; i++) {
-        unsigned char serialized_comm_list[V * NR_MESSAGES][MUSIG2_PUBKEY_BYTES_COMPRESSED];
-        unsigned char serialized_pubkey[MUSIG2_PUBKEY_BYTES_COMPRESSED];
+            unsigned char serialized_comm_list[V * NR_MESSAGES][MUSIG2_PUBKEY_BYTES_COMPRESSED];
+            unsigned char serialized_pubkey[MUSIG2_PUBKEY_BYTES_COMPRESSED];
 
-        err = musig2_serialise_shareable_context(&mcs_list[i], serialized_pubkey, serialized_comm_list);
-        if (err != MUSIG2_OK)
-            return 0;
+            musig2_serialise_shareable_context(&mcs_list[i], serialized_pubkey, serialized_comm_list);
 
-        memcpy(&serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_pubkey, MUSIG2_PUBKEY_BYTES_COMPRESSED);
-        l = 0; // the index of the signer's commitment list.
-        for (k = 0; k < NR_MESSAGES; k++)
-            for (j = 0; j < V; j++, l++)
-                memcpy(&serialized_batch_list[(k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list[l],
-                MUSIG2_PUBKEY_BYTES_COMPRESSED);
+            memcpy(&serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_pubkey, MUSIG2_PUBKEY_BYTES_COMPRESSED);
+            l = 0; // the index of the signer's commitment list.
+            for (k = 0; k < NR_MESSAGES; k++)
+                for (j = 0; j < V; j++, l++)
+                    memcpy(&serialized_batch_list[(k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list[l],
+                    MUSIG2_PUBKEY_BYTES_COMPRESSED);
     }
     return 1;
 }

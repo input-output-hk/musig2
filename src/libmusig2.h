@@ -99,8 +99,6 @@ MUSIG2_ERROR musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
 
 /** Serialize the shareable content in compressed (33-byte) form.
  *
- *  Returns: If all content serialized successfully, it returns 1, 0 otherwise.
- *
  *  In:     mcs:                    a musig2_context_signer object
  *  Out:    serialized_pubkey:      33-byte serialized public key of signer.
  *          serialized_batch_list:  the list of 33-byte serialized commitments.
@@ -109,7 +107,7 @@ MUSIG2_ERROR musig2_init_signer(musig2_context_signer *mcs, int nr_messages);
  *  Public key and the commitments are stored within keypair type in the struct, thus before serialization,
  *  public key content is extracted from keypair for both pubkey and commitments.
  * */
-MUSIG2_ERROR musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
+void musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned char *serialized_pubkey, unsigned char serialized_batch_list[][MUSIG2_PUBKEY_BYTES_COMPRESSED]);
 
 /** Signer precomputation before signing round.
  *

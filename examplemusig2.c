@@ -60,17 +60,13 @@ int main(void) {
     for (i = 0; i < NR_SIGNERS; i++) {
         unsigned char serialized_comm_list[V * NR_MESSAGES][MUSIG2_PUBKEY_BYTES_COMPRESSED];
         unsigned char serialized_pubkey[MUSIG2_PUBKEY_BYTES_COMPRESSED];
-        res = musig2_serialise_shareable_context(&mcs_list[i], serialized_pubkey, serialized_comm_list);
-        printf("  Signer %d: %s", i + 1, musig2_error_str(res));
-        if (res){
-            memcpy(&serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_pubkey, MUSIG2_PUBKEY_BYTES_COMPRESSED);
-            l = 0; // the index of the signer's commitment list.
-            for (k = 0; k < NR_MESSAGES; k++)
-                for (j = 0; j < V; j++, l++)
-                    memcpy(&serialized_batch_list[(k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list[l],
-                           MUSIG2_PUBKEY_BYTES_COMPRESSED);
-
-        }
+        musig2_serialise_shareable_context(&mcs_list[i], serialized_pubkey, serialized_comm_list);
+        memcpy(&serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_pubkey, MUSIG2_PUBKEY_BYTES_COMPRESSED);
+        l = 0; // the index of the signer's commitment list.
+        for (k = 0; k < NR_MESSAGES; k++)
+            for (j = 0; j < V; j++, l++)
+                memcpy(&serialized_batch_list[(k * NR_SIGNERS * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED], serialized_comm_list[l],
+                       MUSIG2_PUBKEY_BYTES_COMPRESSED);
     }
 
     /**** Aggregate the public keys and batch commitments for each signer for all messages ****/
