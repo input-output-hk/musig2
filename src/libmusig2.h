@@ -28,14 +28,7 @@ typedef enum musig2_error {
     MUSIG2_ERR_ADD_PARSIG,      // 9
     MUSIG2_ERR_CMP_R,           // 10
     MUSIG2_ERR_PARSE_PK_COMM,   // 11
-    MUSIG2_ERR_PARSE_COMM,      // 12
-    MUSIG2_INVALID,             // 13
-    KEY_GEN_FAILED,             // 14
-    BATCH_COMM_FAILED,          // 15
-    CALC_R_FAILED,              // 16
-    PARSIG_FAILED,              // 17
-    AGGR_R_FAILED,              // 18
-    AGGR_PK_FAILED,             // 19
+    MUSIG2_INVALID,             // 12
 } MUSIG2_ERROR;
 
 

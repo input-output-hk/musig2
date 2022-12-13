@@ -6,7 +6,7 @@ static MUSIG2_ERROR musig2_key_gen(musig2_context_signer *mcs) {
 
     while (1) {
         if (!fill_random(x, sizeof(x))) {
-            return KEY_GEN_FAILED;
+            return MUSIG2_ERR_KEY_GEN;
         }
         if (secp256k1_keypair_create(mcs->mc.ctx, &mcs->keypair, x)) {
             return MUSIG2_OK;
@@ -27,7 +27,7 @@ static MUSIG2_ERROR musig2_batch_commitment(musig2_context_signer *mcs) {
             mcs->comm_list[i] = malloc(sizeof(secp256k1_keypair));
             while (1) {
                 if (!fill_random(x, MUSIG2_SCALAR_BYTES)) {
-                    return BATCH_COMM_FAILED;
+                    return MUSIG2_ERR_BATCH_COMM;
                 }
                 if (secp256k1_keypair_create(mcs->mc.ctx, mcs->comm_list[i], x)) {
                     break;
@@ -93,16 +93,16 @@ static MUSIG2_ERROR musig2_calc_R(musig2_context *mc, secp256k1_xonly_pubkey *ag
         Rb_list[j] = &tweakable_Rb_list[j];
         memcpy(b_LIST[j], b_LIST[j-1], MUSIG2_SCALAR_BYTES);
         if (!secp256k1_ec_seckey_tweak_mul(mc->ctx, b_LIST[j], b)) {
-            return CALC_R_FAILED;
+            return MUSIG2_ERR_CALC_R;
         }
         if (!secp256k1_ec_pubkey_tweak_mul(mc->ctx, Rb_list[j], b_LIST[j])) {
-            return CALC_R_FAILED;
+            return MUSIG2_ERR_CALC_R;
         }
     }
 
     /* R = SUM ({ R_j * b^(j-1) }) */
     if (!secp256k1_ec_pubkey_combine(mc->ctx, &temp_R, (const secp256k1_pubkey *const *)Rb_list, V))
-        return CALC_R_FAILED;
+        return MUSIG2_ERR_CALC_R;
 
     /* Get x_only versions and parities of aggregated public key and aggregated R */
     assert(secp256k1_xonly_pubkey_from_pubkey(mc->ctx, &temp_xonly_pubkey, &mc->pk_parity, &mc->aggr_pubkey));
@@ -112,7 +112,7 @@ static MUSIG2_ERROR musig2_calc_R(musig2_context *mc, secp256k1_xonly_pubkey *ag
     if (*R_parity == 1 && mc->pk_parity == 0){
         for (j = 0; j < V; j++) {
             if (!secp256k1_ec_seckey_negate(mc->ctx, b_LIST[j])) {
-                return CALC_R_FAILED;
+                return MUSIG2_ERR_CALC_R;
             }
         }
         *R_parity = 0;
@@ -143,7 +143,7 @@ static MUSIG2_ERROR musig2_set_parsig(musig2_context_signer *mcs, unsigned char 
     /* Condition where R is even and PK is odd. We negate the challenge */
     if (R_parity == 0 && mcs->mc.pk_parity == 1) {
         if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, c)){
-            return PARSIG_FAILED;
+            return MUSIG2_ERR_SET_PARSIG;
         }
     }
 
@@ -151,7 +151,7 @@ static MUSIG2_ERROR musig2_set_parsig(musig2_context_signer *mcs, unsigned char 
     memcpy(partial_signature, c, MUSIG2_SCALAR_BYTES);
     if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, partial_signature, x) ||
         !secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, partial_signature, a)) {
-        return PARSIG_FAILED;
+        return MUSIG2_ERR_SET_PARSIG;
     }
 
     /* Finalise the computation of a * x * c + \sum_{i=0}^V r_i * b_i */
@@ -159,14 +159,14 @@ static MUSIG2_ERROR musig2_set_parsig(musig2_context_signer *mcs, unsigned char 
         memcpy(temp_rb, sr_list[j], MUSIG2_SCALAR_BYTES);
         if (!secp256k1_ec_seckey_tweak_mul(mcs->mc.ctx, temp_rb, b_LIST[j]) ||
             !secp256k1_ec_seckey_tweak_add(mcs->mc.ctx, partial_signature, temp_rb)) {
-            return PARSIG_FAILED;
+            return MUSIG2_ERR_SET_PARSIG;
         }
     }
 
     /* The third condition, if both R and pk are odd, we negate the partial signature. */
     if (R_parity == 1 && mcs->mc.pk_parity == 1) {
         if (!secp256k1_ec_seckey_negate(mcs->mc.ctx, partial_signature)) {
-            return PARSIG_FAILED;
+            return MUSIG2_ERR_SET_PARSIG;
         }
     }
     return MUSIG2_OK;
@@ -202,12 +202,12 @@ static MUSIG2_ERROR musig2_aggregate_pubkey(musig2_context *mc, secp256k1_pubkey
 
         /* Compute `pk_i * a_i` */
         if (!secp256k1_ec_pubkey_tweak_mul(mc->ctx, (secp256k1_pubkey*)pubkey_pointer_list[i], temp_a))
-            return AGGR_PK_FAILED;
+            return MUSIG2_ERR_AGGR_PK;
     }
 
     /* Aggregate the public keys */
     if (!secp256k1_ec_pubkey_combine(mc->ctx, &mc->aggr_pubkey, pubkey_pointer_list, mc->nr_signers)) {
-        return AGGR_PK_FAILED;
+        return MUSIG2_ERR_AGGR_PK;
     }
 
     return MUSIG2_OK;
@@ -225,7 +225,7 @@ static MUSIG2_ERROR musig2_aggregate_R(musig2_context *mc, secp256k1_pubkey batc
             temp_R_list[i] = &batch_list[i][j];
         }
         if (!secp256k1_ec_pubkey_combine(mc->ctx, mc->aggr_R_list[state * V + j], (const secp256k1_pubkey *const *) temp_R_list, mc->nr_signers)) {
-            return AGGR_R_FAILED;
+            return MUSIG2_ERR_AGGR_R;
         }
     }
 
