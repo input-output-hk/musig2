@@ -6,6 +6,7 @@ extern "C" {
         secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
         musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
         musig2_context_signature mps[NR_SIGNERS];
+        musig2_aggr_pubkey aggr_pubkey;
         unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
         unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
         unsigned char signature[MUSIG2_BYTES];
@@ -32,10 +33,13 @@ extern "C" {
         err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
         ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
 
+        err = musig2_prepare_verifier(&aggr_pubkey, serialized_pubkey_list, NR_SIGNERS);
+        ASSERT_EQ(err, MUSIG2_OK);
+
         // Verify the aggregated signature with secp256k1_schnorrsig_verify
         // Verification should fail since signature aggregate fails.
-        err = musig2_helper_verify(ctx, mcs_list[1].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
-        ASSERT_EQ(err, 0);
+        err = musig2_verify(&aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+        ASSERT_EQ(err, MUSIG2_INVALID);
     }
 
 }
