@@ -3,7 +3,7 @@ extern "C" {
 #include "../src/libmusig2.h"
 #include "config.h"
 
-int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_participants) {
+MUSIG2_ERROR musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_participants) {
     int i, j, k, l;
     MUSIG2_ERROR err;
 
@@ -32,7 +32,7 @@ int musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serializ
     return MUSIG2_OK;
 }
 
-int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, musig2_context_signer *mcs_list, int nr_participants) {
+MUSIG2_ERROR musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, musig2_context_signer *mcs_list, int nr_participants) {
     /**** Aggregate the public keys and batch commitments for each signer ****/
     int i;
     MUSIG2_ERROR err;
@@ -44,7 +44,7 @@ int musig2_helper_precomputation(unsigned char *serialized_pubkey_list, unsigned
     return MUSIG2_OK;
 }
 
-int musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature *mps, int nr_participants) {
+MUSIG2_ERROR musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature *mps, int nr_participants) {
     int i;
     MUSIG2_ERROR err;
     for (i = 0; i < nr_participants; i++) {
@@ -57,14 +57,15 @@ int musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature
     return MUSIG2_OK;
 }
 
-int musig2_helper_verify(unsigned char *serialized_pubkey_list, unsigned char *signature, const unsigned char *msg, int msg_len, int nr_participants){
+MUSIG2_ERROR musig2_helper_verify(unsigned char *serialized_pubkey_list, unsigned char *signature, const unsigned char *msg, int msg_len, int nr_participants){
     MUSIG2_ERROR err;
     musig2_aggr_pubkey aggr_pubkey;
     err = musig2_prepare_verifier(&aggr_pubkey, serialized_pubkey_list, nr_participants);
     if (err != MUSIG2_OK){
         return err;
     }
-    if (musig2_verify(&aggr_pubkey, signature, msg, msg_len) != MUSIG2_OK) {
+    err = musig2_verify(&aggr_pubkey, signature, msg, msg_len);
+    if (err != MUSIG2_OK) {
         return err;
     }
     return MUSIG2_OK;

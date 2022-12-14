@@ -387,8 +387,10 @@ MUSIG2_ERROR musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned c
     verifier_context.ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
 
     for (i = 0; i < nr_signers; i++) {
-        assert(secp256k1_ec_pubkey_parse(verifier_context.ctx, &pubkey_list[i], &serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED],
-                                         MUSIG2_PUBKEY_BYTES_COMPRESSED));
+        if (!secp256k1_ec_pubkey_parse(verifier_context.ctx, &pubkey_list[i], &serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED],
+                                         MUSIG2_PUBKEY_BYTES_COMPRESSED)){
+            return MUSIG2_ERR_PARSE_PK_COMM;
+        }
     }
 
     if (musig2_aggregate_pubkey(&verifier_context, pubkey_list) != MUSIG2_OK) {
