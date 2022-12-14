@@ -33,12 +33,7 @@ extern "C" {
         err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
         ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
 
-        err = musig2_prepare_verifier(&aggr_pubkey, serialized_pubkey_list, NR_SIGNERS);
-        ASSERT_EQ(err, MUSIG2_OK);
-
-        // Verify the aggregated signature with secp256k1_schnorrsig_verify
-        // Verification should fail since signature aggregate fails.
-        err = musig2_verify(&aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+        err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
         ASSERT_EQ(err, MUSIG2_INVALID);
     }
 

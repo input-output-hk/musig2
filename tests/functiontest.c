@@ -26,7 +26,7 @@ TEST (musig2, valid_signature) {
     err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_OK);
 
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 }
 
@@ -57,7 +57,7 @@ TEST (musig2, not_enough_signatures) {
     err = musig2_aggregate_partial_sig(mps, signature, less_signers);
     ASSERT_EQ(err, MUSIG2_OK);
 
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 0);
 }
 
@@ -90,7 +90,7 @@ TEST (musig2, non_corresponding_signers) {
 
     // Verify the aggregated signature with secp256k1_schnorrsig_verify
     // Verification should fail since the aggregated signature does not correspond to the aggregated public key.
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 0);
 
 }
@@ -128,7 +128,7 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
 
     // Verify the aggregated signature with secp256k1_schnorrsig_verify
     // Verification should fail because the aggregation is not complete.
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 0);
 
 }
@@ -160,7 +160,7 @@ TEST (musig2, previous_state) {
     err = musig2_aggregate_partial_sig(mps1, signature1, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_OK);
 
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature1, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature1, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 1);
 
     /*** STATE = 1 ****************************************************************************************************/
@@ -183,7 +183,7 @@ TEST (musig2, previous_state) {
     ASSERT_NE(err, MUSIG2_OK);
 
     // Verification should fail.
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature2, MSG_2, MSG_2_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature2, MSG_2, MSG_2_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 0);
 
 }
@@ -213,7 +213,7 @@ TEST (musig2, future_state) {
     ASSERT_NE(err, MUSIG2_OK);
 
     // Verification should fail since one of the signers' signature used a future state.
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 0);
 
 }
@@ -243,7 +243,7 @@ TEST (musig2, invalid_signer_key) {
     ASSERT_EQ(err, MUSIG2_OK);
 
     // Verification should fail since one of the signers' key is incorrect.
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 0);
 
 }
@@ -274,7 +274,7 @@ TEST (musig2, invalid_single_signature) {
     ASSERT_EQ(err, MUSIG2_OK);
 
     // Verification should fail since one of the single signatures is incorrect.
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 0);
 
 }
@@ -304,7 +304,7 @@ TEST (musig2, aggregate_invalid_public_key) {
     ASSERT_EQ(err, MUSIG2_OK);
 
     // Verification should fail since one of the signers' public key is incorrect.
-    err = musig2_helper_verify(ctx, mcs_list[0].mc.aggr_pubkey, signature, MSG_1, MSG_1_LEN);
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, 0);
 
 }

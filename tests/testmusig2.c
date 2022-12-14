@@ -57,11 +57,17 @@ int musig2_helper_sign(musig2_context_signer *mcs_list, musig2_context_signature
     return MUSIG2_OK;
 }
 
-int musig2_helper_verify(secp256k1_context *ctx, secp256k1_pubkey aggr_pubkey, const unsigned char *signature, const unsigned char *msg, int msg_len ){
-    secp256k1_xonly_pubkey xonly_aggr_pubkey;
-    assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly_aggr_pubkey, nullptr, &aggr_pubkey)) ;
-
-    return secp256k1_schnorrsig_verify(ctx, signature, msg, msg_len, &xonly_aggr_pubkey ) ;
+int musig2_helper_verify(unsigned char *serialized_pubkey_list, unsigned char *signature, const unsigned char *msg, int msg_len, int nr_participants){
+    MUSIG2_ERROR err;
+    musig2_aggr_pubkey aggr_pubkey;
+    err = musig2_prepare_verifier(&aggr_pubkey, serialized_pubkey_list, nr_participants);
+    if (err != MUSIG2_OK){
+        return err;
+    }
+    if (musig2_verify(&aggr_pubkey, signature, msg, msg_len) != MUSIG2_OK) {
+        return err;
+    }
+    return MUSIG2_OK;
 }
 
 #include "functiontest.c"
