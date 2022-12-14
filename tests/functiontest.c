@@ -124,7 +124,7 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
 
     // Aggregation of partial signatures should fail since one of the signatures have incorrect aggregated commitment of nonce.
     err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
-    ASSERT_NE(err, MUSIG2_OK);
+    ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
 
     // Verify the aggregated signature with secp256k1_schnorrsig_verify
     // Verification should fail because the aggregation is not complete.
@@ -170,7 +170,7 @@ TEST (musig2, previous_state) {
 
     // Signature generation should fail for the incorrect state.
     err = musig2_sign(&mcs_list[0], &mps2[0], MSG_2, MSG_2_LEN);
-    ASSERT_NE(err, MUSIG2_OK);
+    ASSERT_EQ(err, MUSIG2_ERR_CHECK_COMM);
 
     // The rest of the signers generate their partial signatures.
     for (i = 1; i < NR_SIGNERS; i++) {
@@ -181,7 +181,7 @@ TEST (musig2, previous_state) {
 
     // Aggregation should fail.
     err = musig2_aggregate_partial_sig(mps2, signature2, NR_SIGNERS);
-    ASSERT_NE(err, MUSIG2_OK);
+    ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
 
     // Verification should fail.
     err = musig2_helper_verify(serialized_pubkey_list, signature2, MSG_2, MSG_2_LEN, NR_SIGNERS);
@@ -211,7 +211,7 @@ TEST (musig2, future_state) {
     ASSERT_EQ(err, MUSIG2_OK);
 
     err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
-    ASSERT_NE(err, MUSIG2_OK);
+    ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
 
     // Verification should fail since one of the signers; signature used a future state.
     err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
