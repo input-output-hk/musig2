@@ -81,7 +81,8 @@ typedef struct{
 
 /** Initialize a musig2 signer.
  *
- *  Returns: MUSIG2_OK if signer initialisation fails, 1 otherwise.
+ *  Returns: MUSIG2_OK if signer initialisation succeeds, MUSIG2_ERR_KEY_GEN if key generation fails,
+ *           and MUSIG2_ERR_BATCH_COMM if batch commitments fail.
  *
  *  In:     nr_messages:    the number of messages
  *  Out:    mcs:            a musig2_context_signer object
@@ -104,7 +105,8 @@ void musig2_serialise_shareable_context(musig2_context_signer *mcs, unsigned cha
 
 /** Signer precomputation before signing round.
  *
- *  Returns: 1 if precomputation is successful, 0 if key aggregation fails, -1 if R aggregation fails.
+ *  Returns: MUSIG2_OK if precomputation is successful, MUSIG2_ERR_PARSE_PK_COMM if parsing fails,
+ *           MUSIG2_ERR_AGGR_PK if key aggregation fails, and MUSIG2_ERR_AGGR_R if R aggregation fails.
  *
  *  In/Out: mc:                     a musig2_context object
  *  In:     serialized_pubkey_list: a string including the list of serialized public keys from all signers.
@@ -122,8 +124,8 @@ MUSIG2_ERROR musig2_signer_precomputation(musig2_context *mc, unsigned char *ser
 
 /** Generate partial signature.
  *
- *  Returns: 1 if partial signature is created successfully, -1 if the corresponding commitment is NULL,
- *          -2 if calculation of R fails, and 0 if partial signature cannot be set.
+ *  Returns: MUSIG2_OK if partial signature is created successfully, MUSIG2_ERR_CHECK_COMM if the corresponding commitment is NULL,
+ *          MUSIG2_ERR_CALC_R if calculation of R fails, and MUSIG2_ERR_SET_PARSIG if partial signature cannot be set.
  *
  *  In:     mcs:            a musig2_context object
  *          msg:            the message to be signed.
@@ -134,7 +136,8 @@ MUSIG2_ERROR musig2_sign(musig2_context_signer *mcs, musig2_context_signature *m
 
 /** Aggregate the given list of partial signatures.
  *
- *  Returns: 1 if multi-signature is created successfully, -1 if not all the `R` values are equal, and 0 if aggregation fails.
+ *  Returns: MUSIG2_OK if multi-signature is created successfully, MUSIG2_ERR_CMP_R if not all the `R` values are equal,
+ *           and MUSIG2_ERR_ADD_PARSIG if aggregation fails.
  *
  *  In:     mps:                a list of musig2_context_signature objects
  *          nr_signatures:      the number of signatures.
@@ -144,7 +147,8 @@ MUSIG2_ERROR musig2_aggregate_partial_sig(musig2_context_signature *mps, unsigne
 
 /** Prepare verifier.
  *
- *  Returns: 1 if verifier prepared, 0 if public key aggregation fails.
+ *  Returns: MUSIG2_OK if verifier prepared, MUSIG2_ERR_PARSE_PK_COMM if the public keys failed to parse,
+ *           and MUSIG2_ERR_AGGR_PK if public key aggregation fails.
  *
  *  In:     serialized_pubkey_list: a string including the list of serialized public keys from all signers.
  *          nr_signers:             the number of signers.
@@ -157,7 +161,7 @@ MUSIG2_ERROR musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned c
 
 /** Verify given musig2 signature of given message with secp256k1_schnorrsig_verify.
  *
- *  Returns: If verification succeeds, it returns 1, 0 otherwise.
+ *  Returns: If verification succeeds, it returns MUSIG2_OK, MUSIG2_INVALID otherwise.
  *  In:     aggr_pubkey:    verification key of the signature.
  *          signature:      musig2_context_signer object.
  *          msg:            message of the signature to be verified.
