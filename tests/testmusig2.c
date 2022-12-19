@@ -72,7 +72,6 @@ MUSIG2_ERROR musig2_helper_verify(unsigned char *serialized_pubkey_list, unsigne
 }
 
 #include "functiontest.c"
-#include "failtest.c"
 #include "serdetest.c"
 }
 
