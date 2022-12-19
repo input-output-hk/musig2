@@ -1,5 +1,5 @@
 extern "C" {
-
+/* Test for a valid flow. */
 TEST (musig2, valid_signature) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -30,6 +30,7 @@ TEST (musig2, valid_signature) {
     ASSERT_EQ(err, MUSIG2_OK);
 }
 
+/* Insufficient number of single signatures aggregated should fail to verify with aggregate public key. */
 TEST (musig2, not_enough_signatures) {
 #define less_signers (NR_SIGNERS - 1)
 
@@ -61,6 +62,7 @@ TEST (musig2, not_enough_signatures) {
     ASSERT_EQ(err, MUSIG2_INVALID);
 }
 
+/* Verification of aggregate signature with respect to non-corresponding aggregate public key. */
 TEST (musig2, non_corresponding_signers) {
 #define nr_participants  (NR_SIGNERS + 1) // We define more signers.
 
@@ -95,6 +97,7 @@ TEST (musig2, non_corresponding_signers) {
 
 }
 
+/* Tweak `R` for one of the single signatures, aggregate signature fails and so the verification fails. */
 TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -133,6 +136,8 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
 
 }
 
+/* First state runs correctly, one of the signers will try to sign for previous state, so signing fails for that signer.
+ * Consequently, aggregate signature and verification fails.*/
 TEST (musig2, previous_state) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -189,6 +194,7 @@ TEST (musig2, previous_state) {
 
 }
 
+/* One of the signers signs for a future state. Aggregate signature fails due to `R` comparison, and so the verification. */
 TEST (musig2, future_state) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -219,6 +225,7 @@ TEST (musig2, future_state) {
 
 }
 
+/* Tweak the secret key of one of the signers before single signature generation. Aggregate verification fails due to non-matching secret/public key. */
 TEST (musig2, invalid_signer_key) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -249,6 +256,7 @@ TEST (musig2, invalid_signer_key) {
 
 }
 
+/* Tweak one of the single signatures before aggregate signature. Verification fails due to tweaked single signature. */
 TEST (musig2, invalid_single_signature) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -280,6 +288,7 @@ TEST (musig2, invalid_single_signature) {
 
 }
 
+/* Verification fails for a single signature aggregates public keys with a bit flipped. */
 TEST (musig2, aggregate_invalid_public_key) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -293,7 +302,7 @@ TEST (musig2, aggregate_invalid_public_key) {
     err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_OK);
 
-    // Flip a bit of one of the signers; public key.
+    // Flip a bit of one of the signers' public key.
     serialized_pubkey_list[0] ^= 1;
     err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_OK);
@@ -310,6 +319,7 @@ TEST (musig2, aggregate_invalid_public_key) {
 
 }
 
+/* Precomputation for more entries fails. */
 TEST (musig2, fail_excessive_num_of_participants) {
 #define more_signers  (NR_SIGNERS + 1) // We define less signers.
 
@@ -347,6 +357,7 @@ TEST (musig2, fail_excessive_num_of_participants) {
     ASSERT_EQ(err, MUSIG2_INVALID);
 }
 
+/* Aggregate signature fails for an invalid type single signature. */
 TEST (musig2, fail_aggregate_invalid_signature) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
