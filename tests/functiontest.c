@@ -6,7 +6,7 @@ TEST (musig2, valid_signature) {
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     MUSIG2_ERROR err;
 
@@ -38,7 +38,7 @@ TEST (musig2, not_enough_signatures) {
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[less_signers];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     MUSIG2_ERROR err;
 
@@ -70,7 +70,7 @@ TEST (musig2, non_corresponding_signers) {
     musig2_context_signer mcs_list[nr_participants]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[nr_participants * NR_MESSAGES * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[nr_participants * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[nr_participants * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     MUSIG2_ERROR err;
 
@@ -105,7 +105,7 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
     musig2_context_signature mps[NR_SIGNERS];
     secp256k1_pubkey temp_pubkey;
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     unsigned char tweak[MUSIG2_SCALAR_BYTES] = {7};
     MUSIG2_ERROR err;
@@ -145,7 +145,7 @@ TEST (musig2, previous_state) {
     musig2_context_signature mps1[NR_SIGNERS];
     musig2_context_signature mps2[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature1[MUSIG2_BYTES];
     unsigned char signature2[MUSIG2_BYTES];
     int i;
@@ -201,7 +201,7 @@ TEST (musig2, future_state) {
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     MUSIG2_ERROR err;
 
@@ -232,7 +232,7 @@ TEST (musig2, invalid_signer_key) {
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     MUSIG2_ERROR err;
 
@@ -263,7 +263,7 @@ TEST (musig2, invalid_single_signature) {
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     MUSIG2_ERROR err;
 
@@ -295,7 +295,7 @@ TEST (musig2, aggregate_invalid_public_key) {
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     MUSIG2_ERROR err;
 
@@ -364,7 +364,7 @@ TEST (musig2, fail_aggregate_invalid_signature) {
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers; public key list
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
     MUSIG2_ERROR err;
 

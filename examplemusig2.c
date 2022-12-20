@@ -18,7 +18,7 @@ const char* const MUSIG2_STR[] = {
 };
 const char* musig2_error_str(MUSIG2_ERROR result)
 {
-    const char* err = MUSIG2_STR[result-1];
+    const char* err = MUSIG2_STR[result - 1];
 
     return err;
 }

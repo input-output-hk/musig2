@@ -416,6 +416,7 @@ MUSIG2_ERROR musig2_verify(musig2_aggr_pubkey *aggr_pubkey, unsigned char *signa
 }
 
 void musig2_context_free(musig2_context *mc) {
+    int l;
     if (mc->ctx != NULL) {
         secp256k1_context_destroy(mc->ctx);
     }
@@ -423,7 +424,7 @@ void musig2_context_free(musig2_context *mc) {
         free(mc->L);
     }
     if (mc->aggr_R_list != NULL) {
-        for (int l = 0; l < V * mc->nr_messages; l++) {
+        for (l = 0; l < V * mc->nr_messages; l++) {
             if (mc->aggr_R_list != NULL){
                 free(mc->aggr_R_list[l]);
             }
@@ -433,7 +434,8 @@ void musig2_context_free(musig2_context *mc) {
 }
 
 void musig2_context_sig_free(musig2_context_signer *mcs) {
-    for (int l = mcs->state * V; l < mcs->mc.nr_messages * V; l++) {
+    int l;
+    for (l = mcs->state * V; l < mcs->mc.nr_messages * V; l++) {
         free(mcs->comm_list[l]);
     }
     free(mcs->comm_list);
