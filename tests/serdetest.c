@@ -1,6 +1,5 @@
 extern "C" {
 
-
 TEST (musig2, pk_list_serialize_deserialize) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -50,4 +49,5 @@ TEST (musig2, commitments_serialize_deserialize) {
     for (i = 0; i < NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED; i++)
         ASSERT_EQ(serde_batch_list[i], serialized_batch_list[i]);
 }
+
 }

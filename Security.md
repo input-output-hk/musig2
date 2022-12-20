@@ -59,7 +59,7 @@ $$ b = H_{non}(X || (R_1 || \ldots || R_V) || m) $$
 
 $$ R = \Sigma_{i = 1}^{V}(R_j^{b^{j-1}}) $$
 
-$$ c = H_{sig}(X || R || m) $$
+$$ c = H_{signature}(X || R || m) $$
 
 $$ s_i = c  a_i x_i + \Sigma_{i = 1}^{V}(r_{ij}   b^{j-1})$$
 
@@ -69,7 +69,7 @@ $$ s = \Sigma_{i = 1}^{N}(s_i) $$
 
 So, the MuSig2 is $(R, s)$.
 
-8. **Verification:** The verifier computes $c = H_{sig}(X || R || m)$ and accepts the signature if $s \cdot G = R + c \cdot X$.
+8. **Verification:** The verifier computes $c = H_{signature}(X || R || m)$ and accepts the signature if $s \cdot G = R + c \cdot X$.
 
 $$ s \cdot G = R + c \cdot X. $$
 
