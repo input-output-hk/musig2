@@ -36,9 +36,6 @@ jobs:
           sudo make install
           cd ../..
 
-      - name: Linelint
-        uses: fernandrone/linelint@0.0.4
-
       - name: Build gtests
         run: |
           mkdir build
@@ -48,7 +45,7 @@ jobs:
           ar rcs build/libmusig2.a build/musig2.o
           ranlib build/libmusig2.a
           clang -x c++ -std=c++11 tests/testmusig2.c -g -o test_run/test -L./build -lmusig2 -lsecp256k1 -lstdc++ -lgtest -lgtest_main -pthread
-          clang examplemusig2.c -g -o example_run/example -L./build -lmusig2 -lsecp256k1 linelint 
+          clang examplemusig2.c -g -o example_run/example -L./build -lmusig2 -lsecp256k1 
 
       - name: Run gtests
         run: test_run/test
