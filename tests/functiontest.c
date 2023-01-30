@@ -2,7 +2,6 @@ extern "C" {
 /* Test for a valid flow. */
 TEST (musig2, valid_signature) {
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
@@ -34,7 +33,6 @@ TEST (musig2, valid_signature) {
 TEST (musig2, not_enough_signatures) {
 #define less_signers (NR_SIGNERS - 1)
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[less_signers];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
@@ -66,7 +64,6 @@ TEST (musig2, not_enough_signatures) {
 TEST (musig2, non_corresponding_signers) {
 #define nr_participants  (NR_SIGNERS + 1) // We define more signers.
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[nr_participants]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[nr_participants * NR_MESSAGES * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
@@ -140,7 +137,6 @@ TEST (musig2, incorrect_aggregated_commitment_of_nonces) {
  * Consequently, aggregate signature and verification fails.*/
 TEST (musig2, previous_state) {
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps1[NR_SIGNERS];
     musig2_context_signature mps2[NR_SIGNERS];
@@ -197,7 +193,6 @@ TEST (musig2, previous_state) {
 /* One of the signers signs for a future state. Aggregate signature fails due to `R` comparison, and so the verification. */
 TEST (musig2, future_state) {
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
@@ -228,7 +223,6 @@ TEST (musig2, future_state) {
 /* Tweak the secret key of one of the signers before single signature generation. Aggregate verification fails due to non-matching secret/public key. */
 TEST (musig2, invalid_signer_key) {
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
@@ -259,7 +253,6 @@ TEST (musig2, invalid_signer_key) {
 /* Tweak one of the single signatures before aggregate signature. Verification fails due to tweaked single signature. */
 TEST (musig2, invalid_single_signature) {
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
@@ -291,7 +284,6 @@ TEST (musig2, invalid_single_signature) {
 /* Verification fails for a single signature aggregates public keys with a bit flipped. */
 TEST (musig2, aggregate_invalid_public_key) {
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
@@ -323,10 +315,8 @@ TEST (musig2, aggregate_invalid_public_key) {
 TEST (musig2, fail_excessive_num_of_participants) {
 #define more_signers  (NR_SIGNERS + 1) // We define less signers.
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
-    musig2_aggr_pubkey aggr_pubkey;
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
     unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
     unsigned char signature[MUSIG2_BYTES];
@@ -360,7 +350,6 @@ TEST (musig2, fail_excessive_num_of_participants) {
 /* Aggregate signature fails for an invalid type single signature. */
 TEST (musig2, fail_aggregate_invalid_signature) {
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
     musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
