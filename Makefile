@@ -1,8 +1,7 @@
 
 CC = clang
 
-CFLAGS = -Wall -Wno-unused-command-line-argument -Wno-unused-function -g
-#CFLAGS += -Wno-unused-variable
+CFLAGS = -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-command-line-argument -g
 
 CPPFLAGS = $(CFLAGS) -x c++ -Wextra -std=c++11
 
