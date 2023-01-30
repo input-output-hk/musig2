@@ -3,6 +3,15 @@ name: CI
 on: [push]
 
 jobs:
+  linelint:
+    runs-on: ubuntu-latest
+    name: Check if all files end in newline
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Linelint
+        uses: fernandrone/linelint@master
+        id: linelint
   test-musig2:
     runs-on: ubuntu-20.04
     steps:
@@ -45,7 +54,7 @@ jobs:
           ar rcs build/libmusig2.a build/musig2.o
           ranlib build/libmusig2.a
           clang -x c++ -std=c++11 tests/testmusig2.c -g -o test_run/test -L./build -lmusig2 -lsecp256k1 -lstdc++ -lgtest -lgtest_main -pthread
-          clang examplemusig2.c -g -o example_run/example -L./build -lmusig2 -lsecp256k1
+          clang examplemusig2.c -g -o example_run/example -L./build -lmusig2 -lsecp256k1 
 
       - name: Run gtests
         run: test_run/test
