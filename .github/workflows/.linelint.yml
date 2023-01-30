@@ -9,17 +9,7 @@ rules:
 
     # will be ignored only by this rule
     ignore:
-      - secp256k1-sources/secp256k1/autom4te.cache/requests
-        secp256k1-sources/secp256k1/contrib/lax_der_parsing.c
-        secp256k1-sources/secp256k1/libsecp256k1.pc
-        secp256k1-sources/secp256k1/libsecp256k1.pc.in
-        secp256k1-sources/secp256k1/src/.deps/.dirstamp
-        secp256k1-sources/secp256k1/src/.dirstamp
-        secp256k1-sources/secp256k1/src/asm/field_10x26_arm.s
-        secp256k1-sources/secp256k1/src/libsecp256k1_la-secp256k1.lo
-        secp256k1-sources/secp256k1/src/libsecp256k1_precomputed_la-precomputed_ecmult.lo
-        secp256k1-sources/secp256k1/src/libsecp256k1_precomputed_la-precomputed_ecmult_gen.lo
-        secp256k1-sources/secp256k1/test-suite.log
+      - secp256k1-sources/*
 
     # if true also checks if file ends in a single newline character
     single-new-line: true

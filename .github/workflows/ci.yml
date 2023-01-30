@@ -3,6 +3,15 @@ name: CI
 on: [push]
 
 jobs:
+  linelint:
+    runs-on: ubuntu-latest
+    name: Check if all files end in newline
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Linelint
+        uses: fernandrone/linelint@master
+        id: linelint
   test-musig2:
     runs-on: ubuntu-20.04
     steps:
