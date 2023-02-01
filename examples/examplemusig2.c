@@ -1,6 +1,5 @@
-#include "src/libmusig2.h"
-#include "tests/config.h"
-
+#include "../src/libmusig2.h"
+#include "config.h"
 
 const char* const MUSIG2_STR[] = {
         " ........................................................[DONE] \n",
@@ -19,8 +18,16 @@ const char* const MUSIG2_STR[] = {
 const char* musig2_error_str(MUSIG2_ERROR result)
 {
     const char* err = MUSIG2_STR[result - 1];
-
     return err;
+}
+
+static void print_hex(unsigned char* data, size_t size) {
+    size_t i;
+    printf("0x");
+    for (i = 0; i < size; i++) {
+        printf("%02x", data[i]);
+    }
+    printf("\n");
 }
 
 int main(void) {
