@@ -32,7 +32,7 @@ test: lib_musig2
 example: lib_musig2
 	rm -rf example_run
 	mkdir example_run
-	$(CC) $(CFLAGS) $(LDLIBS) examplemusig2.c -L./build -lmusig2 -o example_run/example
+	$(CC) $(CFLAGS) $(LDLIBS) examples/examplemusig2.c -L./build -lmusig2 -o example_run/example
 
 run_tests: test example
 	example_run/example
