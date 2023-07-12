@@ -32,6 +32,7 @@ typedef enum musig2_error {
     MUSIG2_ERR_CMP_R,           // 10
     MUSIG2_ERR_PARSE_PK_COMM,   // 11
     MUSIG2_INVALID,             // 12
+    MUSIG2_FAIL,                // 13
 } MUSIG2_ERROR;
 
 

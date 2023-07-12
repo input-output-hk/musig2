@@ -2,6 +2,7 @@
 extern "C" {
 #include "../src/libmusig2.h"
 #include "config.h"
+#include <time.h>
 
 MUSIG2_ERROR musig2_helper_setup(musig2_context_signer *mcs_list, unsigned char *serialized_pubkey_list, unsigned char *serialized_batch_list, int nr_participants) {
     int i, j, k, l;
@@ -71,11 +72,21 @@ MUSIG2_ERROR musig2_helper_verify(unsigned char *serialized_pubkey_list, unsigne
     return MUSIG2_OK;
 }
 
+MUSIG2_ERROR musig2_helper_compare_ser_pubkey(const unsigned char *serialized_pubkey_1, const unsigned char *serialized_pubkey_2, size_t ser_size){
+    size_t i;
+    for (i = 1;  i < ser_size ; i++) {
+        if (serialized_pubkey_1[i] != serialized_pubkey_2[i])
+            return MUSIG2_FAIL;
+    }
+    return MUSIG2_OK;
+}
+
 #include "functiontest.c"
 #include "serdetest.c"
 }
 
 int main(int argc, char* argv[]){
+    srand ((unsigned int) time (NULL));
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
