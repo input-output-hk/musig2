@@ -57,70 +57,54 @@ TEST (musig2, commitments_serialize_deserialize) {
         ASSERT_EQ(serde_batch_list[i], serialized_batch_list[i]);
 }
 
-TEST (musig2, fuzz_test_pk_list) {
+/* Fuzzing public keys */
+TEST (musig2, fuzz_pubkey_precomputation) {
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
-    secp256k1_pubkey deser_pubkey_list[NR_SIGNERS];
+    musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' serialized public key list
-    unsigned char serde_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // A list of public keys serialized from invalid public keys.
-    unsigned char fuzz_ser_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // A list of incorrect serialized public keys.
-    size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
-    int i, err;
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+    unsigned char signature[MUSIG2_BYTES];
+    MUSIG2_ERROR err;
 
     err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
-    ASSERT_EQ(err, 1);
+    ASSERT_EQ(err, MUSIG2_OK);
 
-    // Assign random bytes
-    for (i = 0; i < NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED; i++)
-        fuzz_ser_pubkey_list[i] = rand();
+    int fuzz_index = (rand() % NR_SIGNERS) * MUSIG2_PUBKEY_BYTES_COMPRESSED;
+    musig2_helper_fuzz_pubkey(&serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
 
-    // Try to parse invalid public keys
-    for (i = 0; i < NR_SIGNERS; i++) {
-        ASSERT_NE(secp256k1_ec_pubkey_parse(ctx, &deser_pubkey_list[i], &fuzz_ser_pubkey_list[i * ser_size], ser_size), 1);
-        // The header byte of a valid pubkey is 0x02 or 0x03. This assignment is done to call secp256k1_ec_pubkey_serialize below.
-        deser_pubkey_list[i].data[0] = '\x02';
-    }
-    // Serialize invalid public keys
-    for (i = 0; i < NR_SIGNERS; i++)
-        secp256k1_ec_pubkey_serialize(ctx, &serde_pubkey_list[i * ser_size], &ser_size, &deser_pubkey_list[i], SECP256K1_EC_COMPRESSED);
-
-    for (i = 0; i < NR_SIGNERS; i++)
-        ASSERT_NE(musig2_helper_compare_ser_pubkey(&serde_pubkey_list[i * ser_size], &serialized_pubkey_list[i * ser_size], ser_size), 1);
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    ASSERT_NE(err, MUSIG2_OK);
 }
 
-TEST (musig2, fuzz_test_commitments) {
-
+/* Fuzzing public keys */
+TEST (musig2, fuzz_pubkey_verify) {
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
     musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
-    secp256k1_pubkey deser_batch_list[NR_SIGNERS * V * NR_MESSAGES];
+    musig2_context_signature mps[NR_SIGNERS];
     unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
-    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' serialized public key list
-    unsigned char serde_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED]; // A list of commitments serialized from invalid commitments.
-    unsigned char fuzz_ser_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED]; // A list of incorrect serialized commitments.
-    size_t ser_size = MUSIG2_PUBKEY_BYTES_COMPRESSED;
-    int i, err;
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+    unsigned char signature[MUSIG2_BYTES];
+    MUSIG2_ERROR err;
 
     err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
-    ASSERT_EQ(err, 1);
+    ASSERT_EQ(err, MUSIG2_OK);
 
-    // Assign random bytes
-    for (i = 0; i < NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED; i++)
-        fuzz_ser_batch_list[i] = rand();
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    ASSERT_EQ(err, MUSIG2_OK);
 
-    // Try to parse invalid commitments
-    for (i = 0; i < NR_SIGNERS * V * NR_MESSAGES; i++) {
-        ASSERT_NE(secp256k1_ec_pubkey_parse(ctx, &deser_batch_list[i], &fuzz_ser_batch_list[i * ser_size], ser_size), 1);
-        // The header byte of a valid pubkey is 0x02 or 0x03. This assignment is done to call secp256k1_ec_pubkey_serialize below.
-        deser_batch_list[i].data[0] = '\x02';
-    }
+    int fuzz_index = rand() % NR_SIGNERS;
+    musig2_helper_fuzz_pubkey(&mcs_list[fuzz_index].keypair.data[MUSIG2_SCALAR_BYTES], MUSIG2_PUBKEY_BYTES_FULL);
 
-    // Serialize invalid commitments
-    for (i = 0; i < NR_SIGNERS * V * NR_MESSAGES; i++)
-        secp256k1_ec_pubkey_serialize(ctx, &serde_batch_list[i * ser_size], &ser_size, &deser_batch_list[i], SECP256K1_EC_COMPRESSED);
+    err = musig2_helper_sign(mcs_list, mps, NR_SIGNERS);
+    ASSERT_EQ(err, MUSIG2_OK);
 
-    for (i = 0; i < NR_MESSAGES * NR_SIGNERS * V; i++)
-        ASSERT_NE(musig2_helper_compare_ser_pubkey(&serde_batch_list[i * ser_size], &serialized_batch_list[i * ser_size], ser_size), 1);
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
+    ASSERT_EQ(err, MUSIG2_OK);
+
+    // Verification should fail since one of the signers; public key is incorrect.
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
+    ASSERT_NE(err, MUSIG2_OK);
 }
+
 }
