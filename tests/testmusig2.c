@@ -72,7 +72,7 @@ MUSIG2_ERROR musig2_helper_verify(unsigned char *serialized_pubkey_list, unsigne
     return MUSIG2_OK;
 }
 
-void musig2_helper_fuzz_pubkey(unsigned char *serialized_pubkey, int size){
+void musig2_helper_fuzz_data(unsigned char *serialized_pubkey, int size){
     int i;
     for (i = 0; i <  size; i++)
         serialized_pubkey[i] = rand();

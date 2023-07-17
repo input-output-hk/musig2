@@ -71,7 +71,7 @@ TEST (musig2, fuzz_pubkey_precomputation) {
     ASSERT_EQ(err, MUSIG2_OK);
 
     int fuzz_index = (rand() % NR_SIGNERS) * MUSIG2_PUBKEY_BYTES_COMPRESSED;
-    musig2_helper_fuzz_pubkey(&serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
+    musig2_helper_fuzz_data(&serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
 
     err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
     ASSERT_NE(err, MUSIG2_OK);
@@ -95,7 +95,7 @@ TEST (musig2, fuzz_pubkey_single_signature) {
     ASSERT_EQ(err, MUSIG2_OK);
 
     int fuzz_index = rand() % NR_SIGNERS;
-    musig2_helper_fuzz_pubkey(&mcs_list[fuzz_index].keypair.data[MUSIG2_SCALAR_BYTES], MUSIG2_PUBKEY_BYTES_FULL);
+    musig2_helper_fuzz_data(&mcs_list[fuzz_index].keypair.data[MUSIG2_SCALAR_BYTES], MUSIG2_PUBKEY_BYTES_FULL);
 
     err = musig2_helper_sign(mcs_list, mps, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_OK);
@@ -132,9 +132,58 @@ TEST (musig2, fuzz_pubkey_verify_aggregate) {
     ASSERT_EQ(err, MUSIG2_OK);
 
     int fuzz_index = (rand() % NR_SIGNERS) * MUSIG2_PUBKEY_BYTES_COMPRESSED;
-    musig2_helper_fuzz_pubkey(&serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
+    musig2_helper_fuzz_data(&serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
 
     // Verification should fail since one of the signers' public key is incorrect.
+    err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
+    ASSERT_NE(err, MUSIG2_OK);
+}
+
+/* Fuzz a commitment then try to generate the aggregate R */
+TEST (musig2, fuzz_commitment_precomputation) {
+
+    musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
+    musig2_context_signature mps[NR_SIGNERS];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+    unsigned char signature[MUSIG2_BYTES];
+    MUSIG2_ERROR err;
+
+    err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
+    ASSERT_EQ(err, MUSIG2_OK);
+
+    int fuzz_index = (rand() % (NR_SIGNERS * V));
+    musig2_helper_fuzz_data(&serialized_batch_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
+
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    ASSERT_NE(err, MUSIG2_OK);
+}
+
+/* Set up the verifier given a signature with fuzzed aggregate R.
+ * Try to verify the aggregate signature. */
+TEST (musig2, fuzz_commitment_verify_aggregate) {
+
+    musig2_context_signer mcs_list[NR_SIGNERS]; // Array that holds NR_SIGNERS musig2_context_signer
+    musig2_context_signature mps[NR_SIGNERS];
+    unsigned char serialized_batch_list[NR_MESSAGES * NR_SIGNERS * V * MUSIG2_PUBKEY_BYTES_COMPRESSED];
+    unsigned char serialized_pubkey_list[NR_SIGNERS * MUSIG2_PUBKEY_BYTES_COMPRESSED];    // Signers' public key list
+    unsigned char signature[MUSIG2_BYTES];
+    MUSIG2_ERROR err;
+
+    err = musig2_helper_setup(mcs_list, serialized_pubkey_list, serialized_batch_list, NR_SIGNERS);
+    ASSERT_EQ(err, MUSIG2_OK);
+
+    err = musig2_helper_precomputation(serialized_pubkey_list, serialized_batch_list, mcs_list, NR_SIGNERS);
+    ASSERT_EQ(err, MUSIG2_OK);
+
+    err = musig2_helper_sign(mcs_list, mps, NR_SIGNERS);
+    ASSERT_EQ(err, MUSIG2_OK);
+
+    err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
+    ASSERT_EQ(err, MUSIG2_OK);
+
+    musig2_helper_fuzz_data(&signature[0], MUSIG2_AGGR_PUBKEY_BYTES);
+
     err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_NE(err, MUSIG2_OK);
 }
