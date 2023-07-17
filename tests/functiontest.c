@@ -214,7 +214,7 @@ TEST (musig2, future_state) {
     err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
 
-    // Verification should fail since one of the signers; signature used a future state.
+    // Verification should fail since one of the signers' signature used a future state.
     err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_INVALID);
 
@@ -244,7 +244,7 @@ TEST (musig2, invalid_signer_key) {
     err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_OK);
 
-    // Verification should fail since one of the signers; key is incorrect.
+    // Verification should fail since one of the signers' key is incorrect.
     err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_INVALID);
 
@@ -305,7 +305,7 @@ TEST (musig2, aggregate_invalid_public_key) {
     err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_OK);
 
-    // Verification should fail since one of the signers; public key is incorrect.
+    // Verification should fail since one of the signers' public key is incorrect.
     err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
     ASSERT_EQ(err, MUSIG2_INVALID);
 
