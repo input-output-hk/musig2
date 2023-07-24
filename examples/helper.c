@@ -13,8 +13,8 @@ const char* const MUSIG2_STR[] = {
         " (check commitments) ....................................[FAIL] \n",
         " (combine partial signatures) ...........................[FAIL] \n",
         " (compare R) ............................................[FAIL] \n",
-        " (serialize pubkey) .....................................[FAIL] \n",
-        " (serialize commitments) ................................[FAIL] \n",
+        " (ser/deser pubkey) .....................................[FAIL] \n",
+        " (ser/deser commitments) ................................[FAIL] \n",
         " (operation) ............................................[FAIL] \n",
 
 };

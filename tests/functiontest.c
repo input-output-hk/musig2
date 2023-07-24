@@ -332,7 +332,7 @@ TEST (musig2, fail_excessive_num_of_participants) {
     }
     // Precomputation for a signer that fails
     err = musig2_signer_precomputation(&mcs_list[0].mc, serialized_pubkey_list, serialized_batch_list, more_signers);
-    ASSERT_EQ(err, MUSIG2_ERR_PARSE_PK_COMM);
+    ASSERT_EQ(err, MUSIG2_ERR_PARSE_COMM);
 
     // Generate partial signatures for `mcs_list[1], ..., mcs_list[NR_SIGNERS]`.
     // Failing participant cannot sign.
