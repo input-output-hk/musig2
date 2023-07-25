@@ -1,14 +1,5 @@
 extern "C" {
 
-void print_hex(unsigned char* data, size_t size) {
-    size_t i;
-    printf("0x");
-    for (i = 0; i < size; i++) {
-        printf("%02x", data[i]);
-    }
-    printf("\n");
-}
-
 TEST (musig2, pk_list_serialize_deserialize) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -87,14 +78,6 @@ TEST (musig2, fuzz_pubkey_precomputation) {
     }
     ASSERT_EQ(err, MUSIG2_OK);
 
-    // musig2_pk deserialised_pk;
-    // int a = pk_deserialise(deserialised_pk, serialised_pubkey_list[fuzz_index], 32);
-    // match err {
-    //     MUSIG2_OK => assert_eq(a, DESERIALISE_OK),
-    //     MUSIG2_SER_ERR => assert_eq(a, DESERIALISE_KO
-    //     _
-    // }
-    // /
 }
 
 /* Fuzz a public key of a signer after the aggregate public key is generated.
