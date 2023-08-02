@@ -1,14 +1,6 @@
 extern "C" {
 #include "../src/libmusig2.h"
 
-void print_hex(unsigned char* data, size_t size) {
-    size_t i;
-    printf("0x");
-    for (i = 0; i < size; i++) {
-        printf("%02x", data[i]);
-    }
-    printf("\n");
-}
 TEST (musig2, pk_list_serialize_deserialize) {
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
@@ -86,7 +78,7 @@ TEST (musig2, fuzz_pubkey_precomputation) {
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(err, 1);
             break;
-        case MUSIG2_OK:
+        default:
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(err, 1);
 
@@ -98,9 +90,6 @@ TEST (musig2, fuzz_pubkey_precomputation) {
 
             err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
             ASSERT_EQ(err, MUSIG2_INVALID);
-            break;
-        default:
-            ASSERT_EQ(MUSIG2_INVALID, MUSIG2_OK);
     }
 }
 
@@ -133,7 +122,7 @@ TEST (musig2, fuzz_pubkey_single_signature) {
 
     // Verification should fail since one of the signers' signature is generated with an incorrect public key.
     err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
-    ASSERT_NE(err, MUSIG2_OK);
+    ASSERT_EQ(err, MUSIG2_INVALID);
 }
 
 /* Set up the verifier given a list of public keys including a fuzzed public key in it.
@@ -224,7 +213,6 @@ TEST (musig2, fuzz_commitment_precomputation) {
 
             err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
             ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
-
             break;
         default:
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_batch_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
