@@ -74,10 +74,6 @@ TEST (musig2, fuzz_pubkey_precomputation) {
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(err, 0);
             break;
-        case MUSIG2_ERR_AGGR_PK:
-            err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
-            ASSERT_EQ(err, 1);
-            break;
         default:
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(err, 1);
@@ -145,23 +141,23 @@ TEST (musig2, fuzz_pubkey_verify_aggregate) {
 
     err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
 
+    secp256k1_pubkey pubkey;
+    int res;
     switch(err){
         case MUSIG2_ERR_PARSE_PK:
-            secp256k1_pubkey pubkey;
-            int res;
             res = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(res, 0);
             break;
-        case MUSIG2_INVALID:
+        default:
             int cmp_res;
             musig2_aggr_pubkey aggr_pubkey, fuzz_aggr_pubkey;
+            res = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
+            ASSERT_EQ(res, 1);
             assert(musig2_prepare_verifier(&aggr_pubkey, serialized_pubkey_list, NR_SIGNERS));
             assert(secp256k1_xonly_pubkey_from_pubkey(ctx, &fuzz_aggr_pubkey, NULL, &mcs_list[0].mc.aggr_pubkey));
             cmp_res = secp256k1_xonly_pubkey_cmp(ctx, &fuzz_aggr_pubkey, &aggr_pubkey);
             ASSERT_NE(cmp_res, 0);
-            break;
-        default:
-            ASSERT_NE(err, MUSIG2_OK);
+
     }
 }
 
@@ -191,11 +187,7 @@ TEST (musig2, fuzz_commitment_precomputation) {
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_batch_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(err, 0);
             break;
-        case MUSIG2_ERR_AGGR_R:
-            err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_batch_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
-            ASSERT_EQ(err, 1);
-            break;
-        case MUSIG2_OK:
+        default:
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_batch_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(err, 1);
 
@@ -204,10 +196,6 @@ TEST (musig2, fuzz_commitment_precomputation) {
 
             err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
             ASSERT_EQ(err, MUSIG2_ERR_CMP_R);
-            break;
-        default:
-            err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_batch_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
-            ASSERT_EQ(err, 1);
     }
 }
 
