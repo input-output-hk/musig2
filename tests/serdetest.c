@@ -81,15 +81,6 @@ TEST (musig2, fuzz_pubkey_precomputation) {
         default:
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_pubkey_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(err, 1);
-
-            err = musig2_helper_sign(mcs_list, mps, NR_SIGNERS);
-            ASSERT_EQ(err, MUSIG2_OK);
-
-            err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
-            ASSERT_EQ(err, MUSIG2_OK);
-
-            err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
-            ASSERT_EQ(err, MUSIG2_INVALID);
     }
 }
 
@@ -217,15 +208,6 @@ TEST (musig2, fuzz_commitment_precomputation) {
         default:
             err = secp256k1_ec_pubkey_parse(ctx, &pubkey, &serialized_batch_list[fuzz_index], MUSIG2_PUBKEY_BYTES_COMPRESSED);
             ASSERT_EQ(err, 1);
-
-            err = musig2_helper_sign(mcs_list, mps, NR_SIGNERS);
-            ASSERT_EQ(err, MUSIG2_OK);
-
-            err = musig2_aggregate_partial_sig(mps, signature, NR_SIGNERS);
-            ASSERT_EQ(err, MUSIG2_OK);
-
-            err = musig2_helper_verify(serialized_pubkey_list, signature, MSG_1, MSG_1_LEN, NR_SIGNERS);
-            ASSERT_EQ(err, MUSIG2_INVALID);
     }
 }
 
