@@ -1,3 +1,5 @@
 libmusig2.o
 musig2test
 musig2test.dSYM/
+example_run/
+test_run/

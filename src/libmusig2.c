@@ -276,13 +276,13 @@ MUSIG2_ERROR musig2_signer_precomputation(musig2_context *mc, unsigned char *ser
     /* Parse the batch commitments of the signers */
     for (i = 0; i < nr_signers; i++) {
         if (!secp256k1_ec_pubkey_parse(mc->ctx, &pubkey_list[i], &serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED], MUSIG2_PUBKEY_BYTES_COMPRESSED)){
-            return MUSIG2_ERR_PARSE_PK_COMM;
+            return MUSIG2_ERR_PARSE_PK;
         }
         for (k = 0; k < mc->nr_messages; k++) {
             for (j = 0; j < V; j++) {
                 ind = (k * nr_signers * V + i * V + j) * MUSIG2_PUBKEY_BYTES_COMPRESSED;
                 if(!secp256k1_ec_pubkey_parse(mc->ctx, &batch_list[k][i][j], &serialized_batch_list[ind], MUSIG2_PUBKEY_BYTES_COMPRESSED)){
-                    return MUSIG2_ERR_PARSE_PK_COMM;
+                    return MUSIG2_ERR_PARSE_COMM;
                 }
             }
         }
@@ -389,7 +389,7 @@ MUSIG2_ERROR musig2_prepare_verifier(musig2_aggr_pubkey *aggr_pubkey, unsigned c
     for (i = 0; i < nr_signers; i++) {
         if (!secp256k1_ec_pubkey_parse(verifier_context.ctx, &pubkey_list[i], &serialized_pubkey_list[i * MUSIG2_PUBKEY_BYTES_COMPRESSED],
                                          MUSIG2_PUBKEY_BYTES_COMPRESSED)){
-            return MUSIG2_ERR_PARSE_PK_COMM;
+            return MUSIG2_ERR_PARSE_PK;
         }
     }
 
