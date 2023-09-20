@@ -37,43 +37,51 @@ make valgrind
 ```
 
 ## Schnorr Signature of libsecp256k1
-
 The library offers an optional module implementing Schnorr signatures over the curve `secp256k1`. 
 The scheme is compatible with [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki) that produces 64-byte Schnorr signatures. 
 BIP-340 standardized the scheme with some modifications for practical purposes.
 
-
 ### Modifications
+For authenticating transactions, ECDSA signatures over the secp256k1 curve with SHA256 hashes are used traditionally 
+and standardized. 
+However, there are several disadvantages compared to Schnorr signatures over the secp256k1 curve. 
+For instance, Schnorr signatures provide linearity, are provably secure (strongly unforgeable under chosen message 
+attack) while the best known results for the provable security of ECDSA rely on stronger assumptions.
+ECDSA signatures are inherently malleable, on the other hand, Schnorr signatures are non-malleable. 
+Furthermore, there are no virtual disadvantages of Schnorr signatures. 
+The motivation is to propose a new standard with some improvements.
+The following are the modifications that relates to the implementation of MuSig2.
 
-- **Encoding nonce and public key:**
-Instead of encoding full `X`, `Y` coordinates of $R$ and $X$ (64-byte public key, 96-byte signature), or compressed encoding (33-byte public key, 65-byte signature), BIP-430 preferred to use xonly encoding (32-byte public key, 64-byte signature).
-
-- **Implicit `Y` coordinate:**
-Schnorr signatures of BIP-430 implicitly choose the `Y` coordinate that is even.
-
-### Security considerations
-
-The xonly encoding of elliptic curve points causes ambiguity since every `X` coordinate has two possible `Y` coordinates. 
-To avoid this ambiguity they chose to select elliptic curve points with even `Y` coordinates.
+- **Encoding nonce and public key:** Instead of encoding full `X`, `Y` coordinates of $R$ and $X$ (64-byte public 
+  key, 96-byte signature), or compressed 
+  encoding (33-byte public key, 65-byte signature, BIP-430 preferred to use xonly encoding (32-byte public key, 
+  64-byte signature).
+- **Implicit `Y` coordinate:** The xonly encoding of elliptic curve points causes ambiguity since every `X` coordinate has two possible `Y` coordinates.
+  To avoid this ambiguity, Schnorr signatures of BIP-430 implicitly chooses the `Y` coordinate that is even, in 
+  other words, xonly encoding is used to represent elliptic curve points that are sent over the wire.
+#### Security considerations
 The xonly encoding of a point is equivalent to representing it with a 33-byte but more compact since only the points with even `Y` coordinate are preferred there is no need to use one extra byte to specify the sign of the point. 
 Moreover, this encoding does not reduce the security of the system (see [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#:~:text=Despite%20halving%20the,8%5D.)). 
-Even if there is an algorithm to solve ECDLP for the xonly encoding, then the full encoding will also be automatically broken since the `X` coordinate has two possible `Y` coordinates as negative and positive.
+Even if there is an algorithm to solve ECDLP for the xonly encoding, then the full encoding will also be 
+automatically broken since the `X` coordinate has only two possible `Y` coordinates.
+
 
 ## Adapting MuSig2 to PIB-430
-
 [MuSig2](https://eprint.iacr.org/2020/1261.pdf) 
 is a two-round multi-signature scheme that outputs an ordinary Schnorr signature. 
 
 1. **Setup:** Let $p$ be a prime and $E$ be an elliptic curve defined over the finite field $F_p$ with the base point $G$ of order $p$.
 
-2. **Key generation:** Every signer selects $x_i$ randomly in $\bmod p$ as secret key, and corresponding public key is $X_i = x_i \cdot G$.
+2. **Key generation:** Every signer selects $x_i$ randomly in $\bmod p$ as secret key, and computes the corresponding 
+   public key as $X_i = x_i \cdot G$.
 
 3. **Batch commitment:** Signers create a list of batch commitments including $V$ elements.
-   The commitment of a signer is an elliptic curve point such that $R = r \cdot G$ where $r$ is randomly selected in $\bmod p$. Then, the batch commitments of the system are
+   The $j^{th}$ commitment of the $i^{th}$ signer is an elliptic curve point such that $R_{ij} = r_{ij} \cdot G$ where 
+   $r_{ij}$ is the nonce, randomly selected in $\bmod p$. Then, the batch commitments of the system are
 
 $$ {R_{11}, R_{12}, \ldots, R_{1V},\ldots, R_{N1}, \ldots, R_{NV}} $$
 
-where $N$ is the number of signers, and $V$ is the number of nonces.
+where $N$ is the number of signers.
 
 4. **Aggregate public key:** After receiving the public keys of the registered signers, each signer aggregate the public key as follows:
 
