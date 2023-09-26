@@ -14,6 +14,9 @@ make example
 ./example_run/example
 ```
 
+The functionality of MuSig2 is tested with GoogleTests. To build GoogleTest, follow the instructions given in 
+[Generic Build Instructions](https://github.com/google/googletest/blob/main/googletest/README.md).
+
 Run the Google tests with
 
 ```shell
@@ -74,7 +77,7 @@ $$ R_j = (\Sigma_{i = 1}^{V} (R_{ij})_{i = 1..N}) $$
 
 $$ b = H_{non}(X || (R_1 || \ldots || R_V) || m) $$
 
-$$ R = \Sigma_{i = 1}^{V}(R_j^{b^{j-1}}) $$
+$$ R = \Sigma_{i = 1}^{V}(R_j \cdot {b^{j-1}}) $$
 
 $$ c = H_{sig}(X || R || m) $$
 
@@ -97,12 +100,9 @@ $$ X = \Sigma_{i = 1}^{N} (a_i \cdot X_i) $$
 where $a_i$ is the key aggregate coefficient.
 The commitment $R$ is also generated with the commitments of signers and the nonce $b$.
 
-$$ R = \Sigma_{i = 1}^{V}(R_j^{b^{j-1}}). $$
+$$ R = \Sigma_{i = 1}^{V}(R_j \cdot {b^{j-1}}). $$
 
 ## Schnorr Signature of libsecp256k1
-The library offers an optional module implementing Schnorr signatures over the curve `secp256k1`. 
-The scheme is compatible with [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki) that produces 64-byte Schnorr signatures. 
-BIP-340 standardized the scheme with some modifications for practical purposes.
-MuSig2 adopts the BIP-340 standard. As a consequence, the proposed modifications also apply for this implementation. 
+MuSig2 is implemented using the Schnorr signatures offered in libsecp256k1 library which is compatible with [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki).
 The security of BIP-340 compatible MuSig2 implementation is discussed in [security](/SECURITY.md).
 

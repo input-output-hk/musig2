@@ -1,13 +1,18 @@
 # Security of MuSig2
+The libsecp256k1 library offers an optional module implementing Schnorr signatures over the curve `secp256k1`.
+The scheme is compatible with [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki) that produces 64-byte Schnorr signatures.
+BIP-340 standardized the scheme with some modifications for practical purposes.
+
+MuSig2 adopts the BIP-340 standard. As a consequence, the proposed modifications also apply for this implementation.
+The security of BIP-340 compatible MuSig2 implementation is explained below.
+
 ## BIP-340
 For authenticating transactions, ECDSA signatures over the secp256k1 curve with SHA256 hashes are used traditionally
 and standardized.
-However, there are several disadvantages compared to Schnorr signatures over the secp256k1 curve.
-For instance, Schnorr signatures provide linearity, are provably secure (strongly unforgeable under chosen message
-attack) while the best known results for the provable security of ECDSA rely on stronger assumptions.
-ECDSA signatures are inherently malleable, on the other hand, Schnorr signatures are non-malleable.
-Furthermore, there are no virtual disadvantages of Schnorr signatures.
-The motivation is to propose a new standard with some improvements.
+There are several disadvantages of ECDSA signatures compared to Schnorr signatures over the secp256k1 curve, yet 
+there are no virtual disadvantages of Schnorr signatures.
+So, the motivation of [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki) is to propose a new 
+standard with some improvements.
 
 ## Modifications
 The following are the modifications that relates to the implementation of MuSig2.
@@ -38,7 +43,7 @@ $$ s \cdot G = R + (-c) \cdot (-X) $$
 - **Case 2** ( $X$ has even, $R$ has odd `Y` coordinate): In this case,
   signers negate every element in the list $b^0, b^1, \ldots, b^{V-1}$, so $R$ is also negated.
 
-- **Case 3** (Both have odd `Y` coordinates): Signers negates their partial signature, so that the aggregated signature will be negated:
+- **Case 3** (Both have odd `Y` coordinates): Signers negate their partial signature, so that the aggregated signature will be negated:
 
 $$ (-s) \cdot G = (-R) + c \cdot (-X). $$
 
