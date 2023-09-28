@@ -71,17 +71,19 @@ Finally, the signer obtains the public key $X$ and keeps her own $a_i$.
 
 $$ R_i = (R_{i1}, \ldots, R_{iV})_{i = 1..N} $$
 
-$$ R_j = (\Sigma_{i = 1}^{V} (R_{ij})_{i = 1..N}) $$
+$$ R_j = (\Sigma_{i = 1}^{N} (R_{ij})) $$
+
+for $j = 1, \ldots, V$.
 
 6. **Single signature:** A single signature $s_i$ is generated as:
 
 $$ b = H_{non}(X || (R_1 || \ldots || R_V) || m) $$
 
-$$ R = \Sigma_{i = 1}^{V}(R_j \cdot {b^{j-1}}) $$
+$$ R = \Sigma_{i = 1}^{V}({b^{j-1}} \cdot R_j) $$
 
 $$ c = H_{sig}(X || R || m) $$
 
-$$ s_i = c  a_i x_i + \Sigma_{i = 1}^{V}(r_{ij}   b^{j-1})$$
+$$ s_i = c  a_i x_i + \Sigma_{i = 1}^{V}(r_{ij} b^{j-1})$$
 
 7. **Aggregate signature:** The aggregate signature $s$ is:
 
@@ -100,7 +102,7 @@ $$ X = \Sigma_{i = 1}^{N} (a_i \cdot X_i) $$
 where $a_i$ is the key aggregate coefficient.
 The commitment $R$ is also generated with the commitments of signers and the nonce $b$.
 
-$$ R = \Sigma_{i = 1}^{V}(R_j \cdot {b^{j-1}}). $$
+$$ R = \Sigma_{i = 1}^{V}({b^{j-1}} \cdot R_j). $$
 
 ## Schnorr Signature of libsecp256k1
 MuSig2 is implemented using the Schnorr signatures offered in libsecp256k1 library which is compatible with [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki).
