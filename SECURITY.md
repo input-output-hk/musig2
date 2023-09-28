@@ -53,9 +53,9 @@ Let
 * $\mathsf{GrGen}(1^\lambda)$ be the group generation algorithm that outputs $(E(\mathbb{F}), G, p)$, where $E(\mathbb{F})$ is an elliptic curve defined over finite field $\mathbb{F}$, $G$ is a generator of $E$, and $p$ is the order of the curve,
 * Oracle $\mathsf{CH}()$ be the challenge oracle that returns the challenge point $X = x_t \cdot G$ where $x_t 
   \leftarrow \mathbb{Z}_p$ for the $t^{th}$ query,
-* Oracle $\mathsf{DLog}(X, (\alpha, (\beta_i)_{1 \leq i \leq t}))$ be the discrete log oracle that returns the 
+* Oracle $\mathsf{DLog}(X, (\alpha, \beta_i))$ be the discrete log oracle that returns the 
   discrete log $\alpha + \Sigma_{i=1}^t \beta_i x_i$ of the point $X$ where $X = \alpha \cdot G + \Sigma_{i=1}^t 
-  \beta_i \cdot X_i$ for $X_i = x_i \cdot G$.
+  \beta_i \cdot X_i$ for $X_i = x_i \cdot G$ and ${1 \leq i \leq t}$.
 
 
 A p.p.t. adversary $\mathcal{A}$ is given $(E(\mathbb{F}), G, p)$. It makes queries to $\mathsf{CH}()$ and $\mathsf{DLog}(X, (\alpha, (\beta_i)_{1 \leq i \leq t}))$ to get the challenge points and discrete logarithms of the challenge points, respectively. Note that, adversary is required to provide an algebraic representation
