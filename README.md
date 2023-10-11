@@ -107,4 +107,3 @@ $$ R = \Sigma_{i = 1}^{V}({b^{j-1}} \cdot R_j). $$
 ## Schnorr Signature of libsecp256k1
 MuSig2 is implemented using the Schnorr signatures offered in libsecp256k1 library which is compatible with [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki).
 The security of BIP-340 compatible MuSig2 implementation is discussed in [security](/SECURITY.md).
-
