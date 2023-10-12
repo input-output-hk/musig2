@@ -29,7 +29,6 @@ Moreover, this encoding does not reduce the security of the system (see [BIP-340
 Even if there is an algorithm to solve ECDLP for the xonly encoding, then the full encoding will also be
 automatically broken since the `X` coordinate has only two possible `Y` coordinates.
 
-
 ## Adapting MuSig2 to PIB-430
 In order to verify MuSig2 by using the function `secp256k1_schnorrsig_verify`, the signature must be obtained by $X$ and $R$ with even `Y` coordinates.
 However, the aggregation of public keys and the commitments may not result points with even `Y` coordinates.
@@ -56,7 +55,6 @@ Let
 * Oracle $\mathsf{DLog}(X, (\alpha, \beta_i))$ be the discrete log oracle that returns the 
   discrete log $\alpha + \Sigma_{i=1}^t \beta_i x_i$ of the point $X$ where $X = \alpha \cdot G + \Sigma_{i=1}^t 
   \beta_i \cdot X_i$ for $X_i = x_i \cdot G$ and ${1 \leq i \leq t}$.
-
 
 A p.p.t. adversary $\mathcal{A}$ is given $(E(\mathbb{F}), G, p)$. It makes queries to $\mathsf{CH}()$ and $\mathsf{DLog}(X, (\alpha, (\beta_i)_{1 \leq i \leq t}))$ to get the challenge points and discrete logarithms of the challenge points, respectively. Note that, adversary is required to provide an algebraic representation
 
